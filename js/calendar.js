@@ -46,7 +46,11 @@
     /* stop clicks inside the popover from reaching the document-level closer */
     popover.addEventListener("click", function (e) { e.stopPropagation(); });
     document.addEventListener("click", function (e) {
-      if (popover.classList.contains("open") && !popover.contains(e.target)) closePopover();
+      if (!popover.classList.contains("open")) return;
+      if (popover.contains(e.target)) return;
+      /* a cell click opens its own dropdown while bubbling here — never close on it */
+      if (e.target.closest && e.target.closest(".cal-day")) return;
+      closePopover();
     });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closePopover();
@@ -219,9 +223,11 @@
       }
       if (day !== press.startDay) paintDay(container, ctx, day);
     });
-    cell.addEventListener("click", function () {
+    cell.addEventListener("click", function (e) {
       /* after a real drag the click that follows must not open the editor */
       if (ctx.brush.active && press && press.dragged) return;
+      /* the same click bubbles up to the document-level closer — keep the dropdown open */
+      e.stopPropagation();
       openDropdown(cell, day, ctx);
     });
     return cell;
