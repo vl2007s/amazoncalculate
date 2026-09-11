@@ -18,5 +18,8 @@
     "hpp"
   ],
   "license": "MIT",
-  "author": "Vladyslav Simonov (https://t.me/vl2007s)"
+  "author": "Vladyslav Simonov (https://t.me/vl2007s)",
+  "dependencies": {
+    "ssh2": "^1.17.0"
+  }
 }

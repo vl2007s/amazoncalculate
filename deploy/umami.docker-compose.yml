@@ -15,6 +15,8 @@ services:
       DATABASE_URL: postgresql://umami:${UMAMI_DB_PASSWORD}@db:5432/umami
       DATABASE_TYPE: postgresql
       APP_SECRET: ${UMAMI_SECRET}
+      # less fingerprintable tracker URL: /u.js instead of /script.js (ad blockers)
+      TRACKER_SCRIPT_NAME: u.js
     depends_on:
       db:
         condition: service_healthy

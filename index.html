@@ -8,9 +8,11 @@
 <link rel="stylesheet" href="css/styles.css">
 <script src="js/theme-init.js"></script>
 <!-- Privacy-friendly analytics: self-hosted Umami, no cookies, no personal data.
-     Replace with your Umami instance URL + website ID (see README). Until configured
-     it just 404s harmlessly. Calculator data (shifts, rates) is never sent. -->
-<script defer src="https://analytics.plp.ink/script.js" data-website-id="PASTE-WEBSITE-ID"></script>
+     Replace data-website-id with your Umami website ID (see README). Until configured
+     it just 404s harmlessly. Respects Do Not Track; only counts on our own domain.
+     Calculator data (shifts, rates) is never sent. -->
+<script defer src="https://analytics.plp.ink/u.js" data-website-id="PASTE-WEBSITE-ID"
+        data-do-not-track="true" data-domains="plp.ink,www.plp.ink"></script>
 </head>
 <body>
 
