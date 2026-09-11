@@ -96,6 +96,28 @@
   });
   syncThemeIcon();
 
+  /* ============ Privacy modal ============ */
+  const privacyModal = document.getElementById("privacyModal");
+  const privacyBody = document.getElementById("privacyBody");
+  function renderPrivacy() {
+    /* paragraphs are separated by blank lines in the locale string */
+    privacyBody.innerHTML = "";
+    I18n.t("privacyBody").split("\n\n").forEach(function (text) {
+      const p = document.createElement("p");
+      p.textContent = text;
+      privacyBody.appendChild(p);
+    });
+  }
+  function closePrivacy() { privacyModal.hidden = true; }
+  document.getElementById("privacyLink").addEventListener("click", function (e) {
+    e.preventDefault();
+    renderPrivacy();
+    privacyModal.hidden = false;
+  });
+  document.getElementById("btnPrivacyClose").addEventListener("click", closePrivacy);
+  privacyModal.addEventListener("click", function (e) { if (e.target === privacyModal) closePrivacy(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePrivacy(); });
+
   let toastTimer = null;
   function showSaved() {
     saveIndicator.classList.remove("idle");

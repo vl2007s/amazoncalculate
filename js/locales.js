@@ -132,6 +132,9 @@
       currency: "CZK",
       hoursUnit: "h",
       footerBy: "Code by",
+      privacyLink: "Privacy & data",
+      privacyTitle: "Privacy & data usage",
+      privacyBody: "Your data stays with you\n\nAll shifts, rates and settings are stored only in your browser's localStorage on your device. Nothing is sent to external servers or synced anywhere — private by default.\n\nNo tracking\n\nThe app collects no visit statistics, no analytics, no advertising identifiers, no cookies. We do not process or transfer any visitor information to third parties.\n\nFonts\n\nThe interface loads the Inter font from Google Fonts — like any web request, this shares your IP address with Google. There are no other third-party resources.\n\nServer logs\n\nIf you use the official hosted version, the web server keeps standard technical access logs (IP, time, page) for abuse protection and aggregate visitor statistics. Logs are never shared and contain no calculator data.\n\nContact\n\nPrivacy questions: vladyslavsimonov22@gmail.com",
       holidays: {
         jan1: "Restoration Day of the Independent Czech State",
         goodFriday: "Good Friday",
@@ -261,6 +264,9 @@
       currency: "Kč",
       hoursUnit: "ч",
       footerBy: "Код",
+      privacyLink: "Приватность и данные",
+      privacyTitle: "Приватность и данные",
+      privacyBody: "Данные остаются у тебя\n\nВсе смены, ставки и настройки хранятся только в localStorage твоего браузера на твоём устройстве. Ничего не отправляется на внешние серверы и никуда не синхронизируется — приватно по умолчанию.\n\nБез трекинга\n\nПриложение не собирает статистику посещений, не использует аналитику, рекламные идентификаторы или cookies. Мы не обрабатываем и не передаём данные о посещениях третьим лицам.\n\nШрифты\n\nИнтерфейс подгружает шрифт Inter с Google Fonts — как при любом веб-запросе, Google при этом получает твой IP-адрес. Других сторонних ресурсов нет.\n\nЛоги сервера\n\nЕсли ты пользуешься официальной размещённой версией, веб-сервер ведёт стандартные технические access-логи (IP, время, страница) для защиты от злоупотреблений и обобщённой статистики посещений. Логи никому не передаются и не содержат данных калькулятора.\n\nКонтакт\n\nВопросы по приватности: vladyslavsimonov22@gmail.com",
       holidays: {
         jan1: "День восстановления независимости чешского государства",
         goodFriday: "Страстная пятница",
@@ -390,6 +396,9 @@
       currency: "Kč",
       hoursUnit: "год",
       footerBy: "Код",
+      privacyLink: "Приватність і дані",
+      privacyTitle: "Приватність і дані",
+      privacyBody: "Дані лишаються у тебе\n\nУсі зміни, ставки та налаштування зберігаються лише в localStorage твого браузера на твоєму пристрої. Ніщо не надсилається на зовнішні сервери й нікуди не синхронізується — приватно за замовчуванням.\n\nБез трекінгу\n\nЗастосунок не збирає статистику відвідувань, не використовує аналітику, рекламні ідентифікатори чи cookies. Ми не обробляємо і не передаємо дані про відвідування третім особам.\n\nШрифти\n\nІнтерфейс підтягує шрифт Inter з Google Fonts — як і будь-який веб-запит, це передає Google твою IP-адресу. Інших сторонніх ресурсів немає.\n\nЛоги сервера\n\nЯкщо ти користуєшся офіційною розміщеною версією, веб-сервер веде стандартні технічні access-логи (IP, час, сторінка) для захисту від зловживань та узагальненої статистики відвідувань. Логи нікому не передаються і не містять даних калькулятора.\n\nКонтакт\n\nПитання щодо приватності: vladyslavsimonov22@gmail.com",
       holidays: {
         jan1: "День відновлення незалежності чеської держави",
         goodFriday: "Страсна п'ятниця",
@@ -519,6 +528,9 @@
       currency: "Kč",
       hoursUnit: "h",
       footerBy: "Code by",
+      privacyLink: "Soukromí a data",
+      privacyTitle: "Soukromí a používání dat",
+      privacyBody: "Data zůstávají u tebe\n\nVšechny směny, sazby a nastavení se ukládají pouze do localStorage tvého prohlížeče na tvém zařízení. Nic se neodesílá na externí servery ani nikam nesynchronizuje — soukromé ve výchozím stavu.\n\nBez sledování\n\nAplikace nesbírá statistiky návštěv, nepoužívá analytiku, reklamní identifikátory ani cookies. Údaje o návštěvách nezpracováváme ani nepředáváme třetím stranám.\n\nFonty\n\nRozhraní načítá font Inter z Google Fonts — jako u každého webového požadavku Google přitom získá tvou IP adresu. Jiné zdroje třetích stran nejsou.\n\nLogy serveru\n\nPokud používáš oficiálně hostovanou verzi, webový server vede standardní technické access logy (IP, čas, stránka) pro ochranu před zneužitím a agregované statistiky návštěvnosti. Logy se nikomu nepředávají a neobsahují data kalkulátoru.\n\nKontakt\n\nOtázky k soukromí: vladyslavsimonov22@gmail.com",
       holidays: {
         jan1: "Den obnovy samostatného českého státu",
         goodFriday: "Velký pátek",

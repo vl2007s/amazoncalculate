@@ -124,8 +124,19 @@
 <footer>
   MIT License <span class="sep">·</span> <span data-i18n="footerBy">Code by</span> Vladyslav Simonov <span class="sep">·</span>
   <a href="https://t.me/vl2007s" target="_blank" rel="noopener">t.me/vl2007s</a> <span class="sep">·</span>
-  <a href="mailto:vladyslavsimonov22@gmail.com">vladyslavsimonov22@gmail.com</a>
+  <a href="mailto:vladyslavsimonov22@gmail.com">vladyslavsimonov22@gmail.com</a> <span class="sep">·</span>
+  <a href="#privacy" id="privacyLink" data-i18n="privacyLink">Privacy &amp; data</a>
 </footer>
+
+<div class="privacy-modal" id="privacyModal" hidden>
+  <div class="privacy-box" role="dialog" aria-modal="true">
+    <div class="privacy-head">
+      <strong data-i18n="privacyTitle">Privacy &amp; data usage</strong>
+      <button type="button" id="btnPrivacyClose" class="pop-close" data-i18n-aria="popoverClose" aria-label="Close">✕</button>
+    </div>
+    <div class="privacy-body" id="privacyBody"></div>
+  </div>
+</div>
 
 <div class="toast" id="toast" data-i18n="toastSaved">✓ Saved</div>
 <div class="day-popover" id="dayPopover" role="dialog" aria-modal="false"></div>

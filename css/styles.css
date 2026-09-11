@@ -177,6 +177,7 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 }
 .cal-day:hover{box-shadow:var(--shadow-pop); transform:translateY(-1px); z-index:2;}
 .cal-grid.brushing .cal-day{cursor:crosshair;}
+.cal-grid.brushing{touch-action:none; user-select:none; -webkit-user-select:none;}
 .cal-grid.brushing .cal-day:hover{transform:none;}
 .cal-day.pad{border:none; background:transparent; pointer-events:none; box-shadow:none;}
 .cal-day .num{font-size:13px; font-weight:700; color:var(--text-900); line-height:1.1;}
@@ -329,6 +330,68 @@ footer .sep{margin:0 8px; color:#4A5A68;}
   pointer-events:none; z-index:70;
 }
 .toast.show{opacity:1; transform:translateY(0);}
+
+/* ---------- Motion & polish ---------- */
+/* smooth dark/light switch everywhere it matters */
+body, .panel, .stat-card, .topbar, .subbar, footer,
+.cal-day, .day-popover, .brush-bar, .name-field input{
+  transition:background-color .25s, color .25s, border-color .25s, box-shadow .12s;
+}
+/* month grid fades in on every (re)render */
+@keyframes calFade{from{opacity:.35; transform:translateY(4px);} to{opacity:1; transform:none;}}
+.cal-grid{animation:calFade .18s ease-out;}
+/* pop feedback when a cell gets painted by the brush */
+@keyframes cellPop{0%{transform:scale(.92);} 60%{transform:scale(1.05);} 100%{transform:scale(1);}}
+.cal-day.painted{animation:cellPop .18s ease-out; z-index:2;}
+/* dropdown open */
+@keyframes popIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+.day-popover.open{animation:popIn .15s ease-out;}
+@media (max-width:680px){
+  @keyframes sheetUp{from{opacity:0; transform:translateY(24px);} to{opacity:1; transform:none;}}
+  .day-popover.open{animation:sheetUp .2s ease-out;}
+}
+/* hover states */
+.stat-card{transition:box-shadow .15s, transform .15s, background-color .25s, border-color .25s;}
+.stat-card:hover{transform:translateY(-2px); box-shadow:var(--shadow-pop);}
+.brush-chip{transition:filter .12s;}
+
+/* ---------- mobile tightening (nothing should ever overflow) ---------- */
+body{overflow-x:hidden;}
+@media (max-width:680px){
+  .container{padding:14px 10px 48px;}
+  .topbar{padding:12px 12px; gap:10px;}
+  .topbar .brand h1{font-size:16px;}
+  .topbar .brand .sub{display:none;}
+  .topbar .period{gap:6px;}
+  .topbar select{padding:7px 8px;}
+  .topbar .period select{max-width:112px;}
+  .theme-toggle{padding:7px 9px;}
+  .subbar{padding:8px 12px;}
+  .calendar-wrap{padding:8px 6px 12px;}
+  .cal-grid{gap:3px;}
+  .cal-day{min-height:48px; padding:3px 4px;}
+  .brush-bar{padding:8px 12px; gap:6px;}
+  .legend{padding:0 12px 10px; gap:10px; font-size:11px;}
+  .rates-panel .rates-body{gap:12px;}
+  .rates-hint{flex-basis:100%; margin-left:0;}
+}
+
+/* privacy modal */
+.privacy-modal{
+  position:fixed; inset:0; z-index:80; background:rgba(15,17,17,.55);
+  display:flex; align-items:center; justify-content:center; padding:16px;
+}
+.privacy-modal[hidden]{display:none;}
+@keyframes privacyIn{from{opacity:0; transform:scale(.96) translateY(8px);} to{opacity:1; transform:none;}}
+.privacy-box{
+  background:var(--surface-0); border:1px solid var(--line-strong); border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-pop); width:min(560px, 100%); max-height:82vh; overflow:auto;
+  padding:18px 20px; animation:privacyIn .18s ease-out;
+}
+.privacy-head{display:flex; align-items:center; justify-content:space-between; font-size:16px; margin-bottom:8px;}
+.privacy-head .pop-close{border:none; background:transparent; color:var(--text-500); font-size:16px; padding:4px 6px;}
+.privacy-body p{font-size:13.5px; color:var(--text-600); margin:0 0 10px; line-height:1.55;}
+.privacy-body p strong{color:var(--text-900);}
 
 @media print{
   .topbar select, .topbar input,

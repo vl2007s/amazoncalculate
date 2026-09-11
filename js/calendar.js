@@ -1,10 +1,16 @@
 /**
- * Calendar view: month grid with an inline dropdown day editor and a drag-paint brush.
+ * Calendar view: month grid with an inline dropdown day editor and a paint brush.
  *
- * Interaction model:
- *   - CLICK a day  -> opens the dropdown editor (type / overtime / holiday choice)
- *   - DRAG with the brush active -> paints days (the press counts as a drag as soon
- *     as the pointer enters another cell; a plain click still opens the editor)
+ * Interaction model (brush mode decides everything):
+ *   - brush OFF -> click a day to open the dropdown editor (type / overtime / holiday)
+ *   - brush ON  -> every touch paints: a plain click paints that one day, a drag
+ *     paints everything under the pointer; no menus open while the brush is on
+ *
+ * Brush tracking uses pointermove + document.elementFromPoint, NOT pointerenter:
+ * on touch devices the pointer is captured by the cell under the initial touch,
+ * so pointerenter never fires for the cells the finger slides over. elementFromPoint
+ * asks the DOM what is under the finger regardless of capture — works for mouse
+ * and touch alike. touch-action:none on the active grid keeps drags from scrolling.
  *
  * CalendarView.render(container, ctx) — ctx:
  *   year, month            — the visible month
@@ -14,7 +20,7 @@
  *   onChange(idx, patch)   — structured edit from the dropdown ({type} | {overtime} | {holidayWork});
  *                            the app patches state, persists and re-renders
  *   onPaint(idx)           — brush stroke over one day; app mutates state ONLY (no re-render)
- *   onPaintEnd()           — drag released; app persists and does a full re-render
+ *   onPaintEnd()           — press released; app persists and does a full re-render
  *
  * All dynamic text is attached via textContent, so nothing here can inject markup.
  */
@@ -27,9 +33,8 @@
    * On small screens CSS turns it into a fixed bottom sheet instead. */
   let popover = null;
 
-  /* State of the current brush press. press.dragged flips to true once the
-   * pointer has painted anything — a click without dragging must still open
-   * the day editor, so the click handler checks this flag. */
+  /* State of the current brush press, started on pointerdown and ended on
+   * pointerup/pointercancel. Painting a single click is just a press that never moved. */
   let press = null;
   let paintEndCallback = null;
 
@@ -55,10 +60,29 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closePopover();
     });
-    document.addEventListener("pointerup", function () {
-      if (press && press.dragged && paintEndCallback) paintEndCallback();
-      press = null;
-    });
+    document.addEventListener("pointermove", onBrushMove);
+    document.addEventListener("pointerup", endBrushPress);
+    /* the browser may cancel the press instead (scroll, OS gesture) — treat as release */
+    document.addEventListener("pointercancel", endBrushPress);
+  }
+
+  function endBrushPress() {
+    if (press && paintEndCallback) paintEndCallback();
+    press = null;
+  }
+
+  /* While a press is active, paint whatever day is currently under the pointer.
+   * Coordinates (not event targets) make this work on touch, where events are
+   * delivered only to the cell that captured the pointer. */
+  function onBrushMove(e) {
+    if (!press || !press.ctx.brush.active) return;
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const cell = hit && hit.closest ? hit.closest(".cal-day") : null;
+    if (!cell || cell.classList.contains("pad") || cell.dataset.day === undefined) return;
+    const day = parseInt(cell.dataset.day, 10);
+    if (isNaN(day) || day === press.lastDay) return; /* dedupe repeated moves over one cell */
+    press.lastDay = day;
+    paintDay(press.container, press.ctx, day);
   }
 
   function closePopover() {
@@ -175,6 +199,14 @@
     const cell = grid.children[7 + offset + dayIdx];
     if (cell && cell.classList.contains("cal-day") && !cell.classList.contains("pad")) {
       fillCell(cell, dayIdx, ctx);
+      /* pop animation as paint feedback (restart-safe if cells repaint fast) */
+      cell.classList.remove("painted");
+      void cell.offsetWidth; /* reflow restarts the animation */
+      cell.classList.add("painted");
+      cell.addEventListener("animationend", function done() {
+        cell.classList.remove("painted");
+        cell.removeEventListener("animationend", done);
+      });
     }
   }
 
@@ -206,26 +238,19 @@
     const cell = el("button", "cal-day");
     cell.type = "button";
     cell.setAttribute("role", "gridcell");
+    cell.dataset.day = String(day); /* lets the brush find the day via elementFromPoint */
     fillCell(cell, day, ctx);
 
-    /* brush press starts here — painting begins only once the pointer moves
-     * into another cell (or back over the grid), so a plain click still edits */
     cell.addEventListener("pointerdown", function (e) {
       if (!ctx.brush.active) return;
-      e.preventDefault(); /* keep focus off the button while painting */
-      press = { startDay: day, dragged: false };
-    });
-    cell.addEventListener("pointerenter", function () {
-      if (!press || !ctx.brush.active) return;
-      if (!press.dragged) {
-        press.dragged = true;
-        paintDay(container, ctx, press.startDay); /* the cell where the press began */
-      }
-      if (day !== press.startDay) paintDay(container, ctx, day);
+      /* brush owns the gesture: paint immediately and suppress the click entirely */
+      e.preventDefault();
+      press = { ctx: ctx, container: container, lastDay: day };
+      paintDay(container, ctx, day);
     });
     cell.addEventListener("click", function (e) {
-      /* after a real drag the click that follows must not open the editor */
-      if (ctx.brush.active && press && press.dragged) return;
+      /* brush on -> clicks paint (handled on pointerdown), menus stay shut */
+      if (ctx.brush.active) return;
       /* the same click bubbles up to the document-level closer — keep the dropdown open */
       e.stopPropagation();
       openDropdown(cell, day, ctx);
