@@ -1,0 +1,40 @@
+# Self-hosted Umami (privacy-friendly analytics, no cookies).
+# Deploy next to the app on the same VPS:
+#   sudo mkdir -p /opt/umami && sudo cp deploy/umami.docker-compose.yml /opt/umami/docker-compose.yml
+#   cd /opt/umami
+#   # generate secrets:  echo "UMAMI_SECRET=$(openssl rand -hex 32)" >> .env
+#   #                    echo "UMAMI_DB_PASSWORD=$(openssl rand -hex 16)" >> .env
+#   docker compose up -d
+# Then point nginx at it (deploy/analytics-nginx.conf) and certbot the hostname.
+services:
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    ports:
+      - "127.0.0.1:3001:3000" # localhost only — nginx fronts it
+    environment:
+      DATABASE_URL: postgresql://umami:${UMAMI_DB_PASSWORD}@db:5432/umami
+      DATABASE_TYPE: postgresql
+      APP_SECRET: ${UMAMI_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+    init: true
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD}
+    volumes:
+      - umami-db:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  umami-db:

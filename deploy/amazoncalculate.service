@@ -16,6 +16,8 @@ Environment=HOST=127.0.0.1
 Environment=PORT=3000
 # tells the rate limiter to trust the X-Real-IP header set by nginx
 Environment=TRUST_PROXY=1
+# privacy-friendly analytics: allows the Umami origin in the CSP (uncomment + set yours)
+#Environment=UMAMI_ORIGIN=https://analytics.example.com
 ExecStart=/usr/bin/node api/server.js
 Restart=on-failure
 RestartSec=3

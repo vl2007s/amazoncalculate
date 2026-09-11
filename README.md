@@ -26,6 +26,9 @@ Available in **Русский**, **Українська**, **English** and **Če
   column letters in the API match the sheet
 - **Gross → net estimate** (Czech withholdings: 4.5 % health, 7.1 % social, 15 % income tax
   with taxpayer credit)
+- **Privacy by design** — data lives only in your browser; fonts are self-hosted (zero
+  requests to Google); optional self-hosted [Umami](https://umami.is) analytics
+  (no cookies, no personal data, no cookie banner needed)
 - **Autosave** — everything persists in `localStorage`, per month
 - **Print / PDF** — payslip-style printout with a detailed per-day breakdown
 - **REST API** — calculate payroll for any month from your own tools/scripts
@@ -168,6 +171,46 @@ sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com   # free HTTPS
 
 Node listens on 127.0.0.1 only; nginx is the public entry point (`TRUST_PROXY=1`
 lets the rate limiter see real client IPs). Updates: `git pull && systemctl restart amazoncalculate`.
+
+### Analytics (optional): self-hosted Umami
+
+Privacy-friendly visit counting (unique visitors per day/week/month, busiest days/times,
+page views) without cookies, IP storage in plain text or fingerprinting — no cookie
+banner needed under GDPR (legitimate interest, Art. 6(1)(f)).
+
+Docker on the same VPS (simplest for one developer):
+
+```bash
+sudo mkdir -p /opt/umami
+sudo cp deploy/umami.docker-compose.yml /opt/umami/docker-compose.yml
+cd /opt/umami
+echo "UMAMI_SECRET=$(openssl rand -hex 32)" | sudo tee .env
+echo "UMAMI_DB_PASSWORD=$(openssl rand -hex 16)" | sudo tee -a .env
+sudo docker compose up -d
+```
+
+Then expose it on an analytics subdomain:
+
+```bash
+sudo cp deploy/analytics-nginx.conf /etc/nginx/sites-available/analytics
+sudo sed -i 's/analytics.example.com/analytics.plp.ink/g' /etc/nginx/sites-available/analytics
+sudo ln -s /etc/nginx/sites-available/analytics /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d analytics.plp.ink
+```
+
+Final wiring (three small edits):
+
+1. In Umami (`https://analytics.plp.ink`, default login `admin`/`umami` — change it)
+   add the website, copy its **website ID**.
+2. In `index.html` set `data-website-id` on the analytics `<script>` tag (the `src`
+   already points at `analytics.plp.ink`).
+3. In `/etc/systemd/system/amazoncalculate.service` uncomment
+   `Environment=UMAMI_ORIGIN=https://analytics.plp.ink`, then
+   `sudo systemctl daemon-reload && sudo systemctl restart amazoncalculate`.
+
+The calculator's own data (shifts, rates, names) never leaves the browser — the
+tracker reports only the page view itself.
 
 ## Security notes
 

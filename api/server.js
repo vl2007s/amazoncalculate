@@ -40,19 +40,23 @@ const MIME = {
   ".png": "image/png",
   ".ico": "image/x-icon",
   ".md": "text/markdown; charset=utf-8",
-  ".txt": "text/plain; charset=utf-8"
+  ".txt": "text/plain; charset=utf-8",
+  ".woff2": "font/woff2"
 };
 
-/* Static responses get a small, honest hardening header set.
- * CSP allows Google Fonts (the only third-party dependency of the frontend). */
+/* Static responses get a small, honest hardening header set. Fonts are self-hosted
+ * (no Google). Umami analytics runs on the operator's own domain — set UMAMI_ORIGIN
+ * (e.g. https://analytics.example.com) to allow its script + beacon in the CSP. */
+const UMAMI_ORIGIN = process.env.UMAMI_ORIGIN || "";
+const CSP_UMAMI = UMAMI_ORIGIN ? " " + UMAMI_ORIGIN : "";
 const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "SAMEORIGIN",
   "Referrer-Policy": "no-referrer",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   "Content-Security-Policy":
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'; " +
+    "default-src 'self'; script-src 'self'" + CSP_UMAMI + "; style-src 'self' 'unsafe-inline'; " +
+    "font-src 'self'; img-src 'self' data:; connect-src 'self'" + CSP_UMAMI + "; base-uri 'self'; " +
     "frame-ancestors 'self'"
 };
 

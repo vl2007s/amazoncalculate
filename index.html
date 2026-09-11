@@ -4,11 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>HPP Salary Calculator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts/inter.css">
 <link rel="stylesheet" href="css/styles.css">
 <script src="js/theme-init.js"></script>
+<!-- Privacy-friendly analytics: self-hosted Umami, no cookies, no personal data.
+     Replace with your Umami instance URL + website ID (see README). Until configured
+     it just 404s harmlessly. Calculator data (shifts, rates) is never sent. -->
+<script defer src="https://analytics.plp.ink/script.js" data-website-id="PASTE-WEBSITE-ID"></script>
 </head>
 <body>
 
@@ -111,7 +113,6 @@
     <div class="panel-body">
       <p class="hint-line" style="margin-top:0;" data-i18n="settingsHint">Set once by the company admin — rates apply to everyone.</p>
       <div class="settings-grid" id="settingsGrid"></div>
-      <p class="hint-line" data-i18n="settingsNote">Note: vacation and holiday hours are counted using paid night-shift hours.</p>
       <div class="settings-actions">
         <button class="btn ghost" id="btnResetDefaults" data-i18n="resetDefaults">Restore company default rates</button>
         <button class="btn primary" id="btnPrint" data-i18n="printBtn">🖨 Print / save as PDF</button>
