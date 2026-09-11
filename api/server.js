@@ -281,7 +281,14 @@ function serveStatic(urlPath, res, headOnly) {
 
 function dispatch(req, res) {
   const url = new URL(req.url, "http://localhost");
-  const clientIp = req.socket.remoteAddress || "unknown";
+
+  /* Rate limiting counts per client IP. Behind a local reverse proxy every socket
+   * comes from 127.0.0.1 — with TRUST_PROXY=1 (set only when nginx fronts us and
+   * overwrites X-Real-IP itself) take the address it reports instead. */
+  let clientIp = req.socket.remoteAddress || "unknown";
+  if (process.env.TRUST_PROXY === "1" && req.headers["x-real-ip"]) {
+    clientIp = String(req.headers["x-real-ip"]).split(",")[0].trim();
+  }
 
   if (req.method === "OPTIONS") {
     res.writeHead(204, {

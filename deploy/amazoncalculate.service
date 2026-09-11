@@ -1,0 +1,28 @@
+# systemd unit for the HPP salary calculator on a VPS.
+#   sudo cp deploy/amazoncalculate.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now amazoncalculate
+# Adjust User/WorkingDirectory if you deploy to a different path or user.
+[Unit]
+Description=HPP Salary Calculator (Node API + static frontend)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/amazoncalculate
+# node stays on localhost — nginx is the only public entry point
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+# tells the rate limiter to trust the X-Real-IP header set by nginx
+Environment=TRUST_PROXY=1
+ExecStart=/usr/bin/node api/server.js
+Restart=on-failure
+RestartSec=3
+# light sandboxing, the app needs no special privileges
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/amazoncalculate
+
+[Install]
+WantedBy=multi-user.target

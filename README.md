@@ -145,6 +145,30 @@ net estimate.
 }
 ```
 
+## Deploy to a VPS
+
+Ready-made configs live in `deploy/` (nginx reverse proxy + systemd unit).
+Short version for Ubuntu/Debian:
+
+```bash
+# on the VPS
+sudo apt update && sudo apt install -y git nginx certbot python3-certbot-nginx
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
+
+sudo git clone https://github.com/vl2007s/amazoncalculate.git /var/www/amazoncalculate
+sudo cp /var/www/amazoncalculate/deploy/nginx.conf /etc/nginx/sites-available/amazoncalculate
+sudo sed -i 's/example.com/yourdomain.com/g' /etc/nginx/sites-available/amazoncalculate
+sudo ln -s /etc/nginx/sites-available/amazoncalculate /etc/nginx/sites-enabled/
+sudo cp /var/www/amazoncalculate/deploy/amazoncalculate.service /etc/systemd/system/
+
+sudo systemctl daemon-reload && sudo systemctl enable --now amazoncalculate
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com   # free HTTPS
+```
+
+Node listens on 127.0.0.1 only; nginx is the public entry point (`TRUST_PROXY=1`
+lets the rate limiter see real client IPs). Updates: `git pull && systemctl restart amazoncalculate`.
+
 ## Security notes
 
 The server is dependency-free but not naive:
