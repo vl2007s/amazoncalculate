@@ -120,13 +120,19 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .chip-btn.danger-outline{color:var(--danger-text); border-color:var(--danger-line);}
 .chip-btn.danger-outline:hover{background:var(--danger-bg);}
 
-/* view toggle (calendar / list) */
-.view-toggle{display:inline-flex; background:var(--surface-100); border:1px solid var(--line-strong); border-radius:999px; padding:3px; gap:3px;}
-.view-toggle button{
-  border:none; background:transparent; border-radius:999px; padding:6px 14px;
-  font-size:13px; font-weight:600; color:var(--text-600);
+/* schedule template row */
+.template-row{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--surface-200);
 }
-.view-toggle button.active{background:var(--ink-700); color:#fff;}
+.template-title{
+  font-size:12.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--accent-700);
+}
+.template-select{
+  border:1px solid var(--line-strong); border-radius:var(--radius-sm);
+  padding:8px 10px; font-weight:600; background:var(--surface-0); max-width:100%;
+}
 
 /* ---------- Brush toolbar ---------- */
 .brush-bar{
@@ -153,47 +159,6 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .brush-ot input{width:16px; height:16px; accent-color:var(--accent-600);}
 .brush-ot.disabled{opacity:.4; pointer-events:none;}
 .brush-hint{font-size:12px; color:var(--text-500); flex-basis:100%;}
-
-/* ---------- Day list ---------- */
-.day-list{display:flex; flex-direction:column;}
-.day-row{
-  display:flex; align-items:center; gap:12px; padding:10px 18px; border-bottom:1px solid var(--surface-200);
-  flex-wrap:wrap;
-}
-.day-row:last-child{border-bottom:none;}
-.day-row.is-weekend{background:#FFFBF3;}
-.day-row.is-holiday{background:#FFF7F6;}
-.day-row.is-nahr{background:repeating-linear-gradient(45deg,#FFF7F6 0 8px,#FDEDEB 8px 16px);}
-.day-row .date-col{width:96px; flex:none;}
-.day-row .date-col .d1{font-weight:700; font-size:14px;}
-.day-row .date-col .d2{font-size:11.5px; color:var(--text-600);}
-.day-row .type-select{
-  border:1px solid var(--line-strong); border-radius:var(--radius-sm); padding:8px 10px; min-width:168px;
-  font-weight:600; background:var(--off-bg); color:var(--off-text);
-}
-.day-row .type-select.t-den{background:var(--day-bg); color:var(--day-text); border-color:var(--day-line);}
-.day-row .type-select.t-noc{background:var(--night-bg); color:var(--night-text); border-color:var(--night-line);}
-.day-row .type-select.t-dovolena{background:var(--success-bg); color:var(--success-text); border-color:var(--success-line);}
-.day-row .type-select.t-svatek{background:var(--danger-bg); color:var(--danger-text); border-color:var(--danger-line);}
-.day-row .holiday-select{
-  border:1px solid var(--danger-line); border-radius:var(--radius-sm); padding:8px 10px;
-  font-weight:700; font-size:12.5px; background:var(--danger-bg); color:var(--danger-text);
-}
-.day-row .holiday-select.off{background:var(--surface-0); color:var(--text-600); border-style:dashed;}
-.day-row .ot-label{
-  display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-600); white-space:nowrap;
-}
-.day-row .ot-label input{width:16px; height:16px; accent-color:var(--accent-600);}
-.day-row .ot-label.disabled{opacity:.35; pointer-events:none;}
-.day-row .total-col{margin-left:auto; text-align:right; font-weight:700; min-width:90px;}
-.day-row .total-col .kc{font-size:14.5px;}
-.day-row .total-col .kc.zero{color:var(--text-500); font-weight:500;}
-@media (max-width:680px){
-  .day-row{gap:8px;}
-  .day-row .total-col{margin-left:0; width:100%; text-align:left; order:6; padding-top:4px; border-top:1px dashed var(--line); margin-top:4px;}
-  .day-row .type-select{min-width:140px; flex:1;}
-  .day-row .holiday-select{flex:1; min-width:150px;}
-}
 
 /* ---------- Calendar view ---------- */
 .calendar-wrap{position:relative; padding:14px 18px 18px;}
@@ -364,8 +329,8 @@ footer .sep{margin:0 8px; color:#4A5A68;}
 .toast.show{opacity:1; transform:translateY(0);}
 
 @media print{
-  .topbar select, .topbar input, .quick-actions, .day-row select, .day-row input,
-  .settings-actions, .toast, .subbar a, .view-toggle, .calendar-wrap, .day-popover,
+  .topbar select, .topbar input, .quick-actions, .template-row,
+  .settings-actions, .toast, .subbar a, .calendar-wrap, .day-popover,
   .brush-bar, .chip-btn{display:none !important;}
   body{background:#fff;}
   .panel{box-shadow:none; border:1px solid #ccc;}

@@ -11,8 +11,11 @@ Available in **Русский**, **Українська**, **English** and **Če
 - **Calendar view** — plan shifts on a month grid; click any day to open a mini dropdown:
   shift type (off / day / night / vacation), overtime, and the holiday choice.
   On mobile the dropdown becomes a bottom sheet
-- **Paint brush** — pick a shift and click or drag across days to paint them in
-- **List view** — classic per-day rows with shift and holiday dropdowns
+- **Paint brush** — pick a shift and click or drag across days to paint them in;
+  totals update live while you paint
+- **Schedule templates** — Front Half (Sun–Wed), Back Half (Wed–Sat), Donut (Mon·Tue·Thu·Fri),
+  their 3-day variants and Weekend-only: fill the whole month in one click,
+  as a day or night shift
 - **Automatic public holidays** — Czech holidays (Easter computed algorithmically) are
   detected from the calendar; a day/night shift falling on a holiday gets the holiday
   supplement automatically — no manual "holiday" day type needed

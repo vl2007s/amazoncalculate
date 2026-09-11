@@ -267,8 +267,44 @@
     return totals;
   }
 
+  /**
+   * Schedule presets (Amazon-style rotation patterns). days = weekday numbers
+   * (0 = Sunday … 6 = Saturday) that make up the working part of the pattern.
+   */
+  const SCHEDULE_PRESETS = [
+    { key: "front_half", days: [0, 1, 2, 3] },   /* Sun – Wed */
+    { key: "back_half", days: [3, 4, 5, 6] },    /* Wed – Sat */
+    { key: "donut", days: [1, 2, 4, 5] },        /* Mon, Tue, Thu, Fri */
+    { key: "back_half_3", days: [0, 1, 2] },     /* Sun – Tue (3 days) */
+    { key: "donut_3", days: [3, 4, 5] },         /* Wed – Fri (3 days) */
+    { key: "weekend", days: [6, 0] }             /* Sat, Sun */
+  ];
+
+  /**
+   * Build a full month of shifts from a preset: pattern days get the given shift
+   * type (den/noc), everything else is volno. Unknown preset or shift type yields
+   * an all-off month. Pure function — the caller replaces state and re-renders.
+   */
+  function applySchedule(year, month0, presetKey, type) {
+    const preset = SCHEDULE_PRESETS.filter(function (p) { return p.key === presetKey; })[0];
+    const isWorkShift = type === "den" || type === "noc";
+    const n = daysInMonth(year, month0);
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const d = new Date(year, month0, i + 1);
+      if (isWorkShift && preset && preset.days.indexOf(d.getDay()) !== -1) {
+        out.push({ type: type, overtime: false, holidayWork: true });
+      } else {
+        out.push({ type: "volno", overtime: false, holidayWork: true });
+      }
+    }
+    return out;
+  }
+
   return {
     DEFAULT_SETTINGS: DEFAULT_SETTINGS,
+    SCHEDULE_PRESETS: SCHEDULE_PRESETS,
+    applySchedule: applySchedule,
     SETTINGS_FIELDS: SETTINGS_FIELDS,
     SHIFT_TYPES: SHIFT_TYPES,
     WORK_TYPES: WORK_TYPES,

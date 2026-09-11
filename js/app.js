@@ -1,12 +1,15 @@
-/* App wiring: state, localStorage persistence, rendering (list view, calendar view,
- * summary, breakdown, settings form), language switching.
+/* App wiring: state, localStorage persistence, rendering (calendar view, brush,
+ * summary, breakdown, settings form), schedule templates, language switching.
+ *
+ * The calendar grid is the only shift editor: brush paints, the per-day dropdown
+ * handles the fine details (overtime, holiday worked/stayed-home).
  *
  * State shape:
  *   settings — personal rates and bonus parameters (see Payroll.DEFAULT_SETTINGS);
  *              rates are per-user — everyone in the company can have their own
  *   shifts   — [{type, overtime, holidayWork}] for the selected month,
  *              length = days in month
- *   brush    — {active, type, overtime} paint tool for the calendar view
+ *   brush    — {active, type, overtime} paint tool
  * Persistence keys are versioned ("_v1") so a future schema change can migrate cleanly.
  */
 (function () {
@@ -16,7 +19,6 @@
   /* ============ Storage (keys kept from the original single-file version) ============ */
   const LS_SETTINGS = "hpp_kalkulacka_settings_v1";
   const LS_NAME = "hpp_kalkulacka_name_v1";
-  const LS_VIEW = "hpp_kalkulacka_view_v1";
   function lsShiftsKey(y, m) { return "hpp_kalkulacka_shifts_" + y + "-" + String(m + 1).padStart(2, "0"); }
 
   function loadSettings() {
@@ -58,7 +60,6 @@
     month: new Date().getMonth(),
     shifts: [],
     name: (function () { try { return localStorage.getItem(LS_NAME) || ""; } catch (e) { return ""; } })(),
-    view: (function () { try { return localStorage.getItem(LS_VIEW) || "calendar"; } catch (e) { return "calendar"; } })(),
     brush: { active: false, type: "den", overtime: false }
   };
   state.shifts = loadShifts(state.year, state.month, Payroll.daysInMonth(state.year, state.month));
@@ -68,18 +69,17 @@
   const monthSelect = document.getElementById("monthSelect");
   const yearSelect = document.getElementById("yearSelect");
   const periodLabel = document.getElementById("periodLabel");
-  const dayList = document.getElementById("dayList");
   const calendarWrap = document.getElementById("calendarWrap");
   const brushBar = document.getElementById("brushBar");
   const nameInput = document.getElementById("nameInput");
   const rateBaseInput = document.getElementById("rateBaseInput");
   const ratePhvInput = document.getElementById("ratePhvInput");
+  const tmplPreset = document.getElementById("tmplPreset");
+  const tmplShift = document.getElementById("tmplShift");
   const settingsGrid = document.getElementById("settingsGrid");
   const breakdownTable = document.getElementById("breakdownTable");
   const toast = document.getElementById("toast");
   const saveIndicator = document.getElementById("saveIndicator");
-  const btnViewCalendar = document.getElementById("btnViewCalendar");
-  const btnViewList = document.getElementById("btnViewList");
 
   langSelect.value = I18n.getLang();
   nameInput.value = state.name;
@@ -157,7 +157,7 @@
     });
   }
 
-  /* ============ Brush toolbar (calendar view only) ============ */
+  /* ============ Brush toolbar ============ */
   function buildBrushBar() {
     brushBar.innerHTML = "";
 
@@ -198,98 +198,32 @@
     ot.appendChild(document.createTextNode(I18n.t("overtime")));
     brushBar.appendChild(ot);
 
-    brushBar.appendChild(Object.assign(document.createElement("span"), { className: "brush-hint", textContent: I18n.t("brushHint") }));
+    const hint = document.createElement("span");
+    hint.className = "brush-hint";
+    hint.textContent = I18n.t("brushHint");
+    brushBar.appendChild(hint);
   }
 
-  /* ============ Day list view ============ */
-  /* One row per day. Dynamic text (holiday names) goes through textContent —
-   * never innerHTML — so locale data can't become an injection vector. */
-  function renderDayList(holidayMap) {
-    const n = Payroll.daysInMonth(state.year, state.month);
-    dayList.innerHTML = "";
-    const results = [];
-    for (let i = 0; i < n; i++) {
-      const date = new Date(state.year, state.month, i + 1);
-      const entry = state.shifts[i] || { type: "volno", overtime: false, holidayWork: true };
-      const res = Payroll.calcDay(date, entry.type, entry, state.settings, holidayMap);
-      results.push(res);
-      const isNahr = !!res.isHolidayShift && entry.holidayWork === false;
-
-      const row = document.createElement("div");
-      row.className = "day-row" + (res.isWeekend ? " is-weekend" : "") + (res.holidayName ? " is-holiday" : "") + (isNahr ? " is-nahr" : "");
-
-      const dateCol = document.createElement("div"); dateCol.className = "date-col";
-      const d1 = document.createElement("div"); d1.className = "d1";
-      d1.textContent = I18n.fmtShortDate(date);
-      const d2 = document.createElement("div"); d2.className = "d2";
-      d2.textContent = res.holidayName || " ";
-      dateCol.appendChild(d1); dateCol.appendChild(d2);
-      row.appendChild(dateCol);
-
-      const select = document.createElement("select");
-      select.className = "type-select t-" + entry.type;
-      /* legacy "svatek" entries stay calculable but are no longer offered */
-      const options = Payroll.WORK_TYPES.concat(entry.type === "svatek" ? ["svatek"] : []);
-      options.forEach(function (key) {
-        const opt = document.createElement("option");
-        opt.value = key; opt.textContent = I18n.t("type_" + key);
-        if (key === entry.type) opt.selected = true;
-        select.appendChild(opt);
-      });
-      select.addEventListener("change", function () {
-        state.shifts[i].type = select.value;
-        if (select.value !== "den" && select.value !== "noc") state.shifts[i].overtime = false;
-        if (select.value !== "den" && select.value !== "noc") state.shifts[i].holidayWork = true;
-        persistAll();
-        renderAll();
-      });
-      row.appendChild(select);
-
-      /* holiday choice: work it (double pay) or stay home (paid leave) */
-      if (res.isHolidayShift) {
-        const holSelect = document.createElement("select");
-        holSelect.className = "holiday-select" + (isNahr ? " off" : "");
-        [[ "1", "holWork" ], [ "0", "holOff" ]].forEach(function (optDef) {
-          const opt = document.createElement("option");
-          opt.value = optDef[0];
-          opt.textContent = I18n.t(optDef[1]);
-          if ((entry.holidayWork !== false ? "1" : "0") === optDef[0]) opt.selected = true;
-          holSelect.appendChild(opt);
-        });
-        holSelect.addEventListener("change", function () {
-          state.shifts[i].holidayWork = holSelect.value === "1";
-          persistAll();
-          renderAll();
-        });
-        row.appendChild(holSelect);
-      }
-
-      /* overtime only for real shifts, and irrelevant on a not-worked holiday */
-      const otLabel = document.createElement("label");
-      const otEnabled = (entry.type === "den" || entry.type === "noc") && !isNahr;
-      otLabel.className = "ot-label" + (otEnabled ? "" : " disabled");
-      const otCheck = document.createElement("input");
-      otCheck.type = "checkbox"; otCheck.checked = !!entry.overtime && !isNahr;
-      otCheck.addEventListener("change", function () {
-        state.shifts[i].overtime = otCheck.checked;
-        persistAll();
-        renderAll();
-      });
-      otLabel.appendChild(otCheck);
-      otLabel.appendChild(document.createTextNode(I18n.t("overtime")));
-      row.appendChild(otLabel);
-
-      const totalCol = document.createElement("div"); totalCol.className = "total-col";
-      const kc = document.createElement("div");
-      kc.className = "kc tabular" + (res.E === 0 ? " zero" : "");
-      kc.textContent = I18n.fmtMoney(res.E);
-      totalCol.appendChild(kc);
-      row.appendChild(totalCol);
-
-      dayList.appendChild(row);
-    }
-    return results;
+  /* ============ Schedule templates ============ */
+  function buildTemplateSelect() {
+    const current = tmplPreset.value;
+    tmplPreset.innerHTML = "";
+    Payroll.SCHEDULE_PRESETS.forEach(function (p) {
+      const opt = document.createElement("option");
+      opt.value = p.key;
+      opt.textContent = I18n.t("preset_" + p.key);
+      tmplPreset.appendChild(opt);
+    });
+    if (current) tmplPreset.value = current;
   }
+
+  document.getElementById("btnTmplApply").addEventListener("click", function () {
+    /* templates rewrite the whole month: pattern days get the chosen shift,
+     * all other days become off */
+    state.shifts = Payroll.applySchedule(state.year, state.month, tmplPreset.value, tmplShift.value);
+    persistAll();
+    renderAll();
+  });
 
   /* ============ Summary & breakdown ============ */
   function renderSummary(results) {
@@ -352,16 +286,6 @@
     breakdownTable.innerHTML = thead + "<tbody>" + rows + "</tbody>";
   }
 
-  /* ============ View toggle ============ */
-  function applyView() {
-    const isCalendar = state.view === "calendar";
-    calendarWrap.hidden = !isCalendar;
-    dayList.hidden = isCalendar;
-    brushBar.hidden = !isCalendar;
-    btnViewCalendar.classList.toggle("active", isCalendar);
-    btnViewList.classList.toggle("active", !isCalendar);
-  }
-
   /* ============ Render ============ */
   function renderMonthSelect() {
     monthSelect.innerHTML = "";
@@ -374,21 +298,23 @@
     monthSelect.value = state.month;
   }
 
-  /* Years as a dropdown: current year ± 6 keeps the list short but reachable. */
+  /* Years 2026 – 2126: far enough to never be a limit in practice. */
   function buildYearSelect() {
     yearSelect.innerHTML = "";
     const nowY = new Date().getFullYear();
-    for (let y = nowY - 6; y <= nowY + 6; y++) {
+    const start = Math.min(2026, nowY - 1);
+    for (let y = start; y <= 2126; y++) {
       const opt = document.createElement("option");
       opt.value = y;
       opt.textContent = y;
       yearSelect.appendChild(opt);
     }
-    yearSelect.value = state.year;
+    if (state.year >= start && state.year <= 2126) yearSelect.value = state.year;
+    else yearSelect.value = String(nowY);
   }
 
   /* Single entry point re-render. The full-month result set is computed once and
-   * shared between the active view, the summary and the breakdown. */
+   * shared between the calendar, the summary and the breakdown. */
   function renderAll() {
     document.documentElement.lang = I18n.getLang();
     document.title = I18n.t("appTitle");
@@ -407,50 +333,47 @@
       results.push(Payroll.calcDay(new Date(state.year, state.month, i + 1), entry.type, entry, state.settings, holidayMap));
     }
 
-    if (state.view === "calendar") {
-      window.CalendarView.render(calendarWrap, {
-        year: state.year, month: state.month,
-        shifts: state.shifts, results: results,
-        brush: state.brush,
-        onChange: function (idx, patch) {
-          if (patch.type) {
-            state.shifts[idx].type = patch.type;
-            if (patch.type !== "den" && patch.type !== "noc") {
-              state.shifts[idx].overtime = false;
-              state.shifts[idx].holidayWork = true;
-            }
+    window.CalendarView.render(calendarWrap, {
+      year: state.year, month: state.month,
+      shifts: state.shifts, results: results,
+      brush: state.brush,
+      onChange: function (idx, patch) {
+        if (patch.type) {
+          state.shifts[idx].type = patch.type;
+          if (patch.type !== "den" && patch.type !== "noc") {
+            state.shifts[idx].overtime = false;
+            state.shifts[idx].holidayWork = true;
           }
-          if (patch.overtime !== undefined && (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc")) {
-            state.shifts[idx].overtime = patch.overtime;
-          }
-          if (patch.holidayWork !== undefined && (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc")) {
-            state.shifts[idx].holidayWork = !!patch.holidayWork;
-          }
-          persistAll();
-          renderAll();
-        },
-        onPaint: function (idx) {
-          const b = state.brush;
-          const prev = state.shifts[idx] || {};
-          state.shifts[idx] = {
-            type: b.type,
-            overtime: (b.type === "den" || b.type === "noc") ? !!b.overtime : false,
-            /* keep the user's holiday preference for the day when repainting */
-            holidayWork: prev.holidayWork !== false
-          };
-          /* update the shared result for this day so refreshCell shows the right amount */
-          const holidayMap = holidayMapFor(state.year);
-          results[idx] = Payroll.calcDay(new Date(state.year, state.month, idx + 1), b.type, state.shifts[idx], state.settings, holidayMap);
-          window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: results, brush: b }, idx);
-        },
-        onPaintEnd: function () {
-          persistAll();
-          renderAll();
         }
-      });
-    } else {
-      renderDayList(holidayMap);
-    }
+        if (patch.overtime !== undefined && (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc")) {
+          state.shifts[idx].overtime = patch.overtime;
+        }
+        if (patch.holidayWork !== undefined && (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc")) {
+          state.shifts[idx].holidayWork = !!patch.holidayWork;
+        }
+        persistAll();
+        renderAll();
+      },
+      onPaint: function (idx) {
+        const b = state.brush;
+        const prev = state.shifts[idx] || {};
+        state.shifts[idx] = {
+          type: b.type,
+          overtime: (b.type === "den" || b.type === "noc") ? !!b.overtime : false,
+          /* keep the user's holiday preference for the day when repainting */
+          holidayWork: prev.holidayWork !== false
+        };
+        /* update the shared result for this day so the totals stay live while painting */
+        results[idx] = Payroll.calcDay(new Date(state.year, state.month, idx + 1), b.type, state.shifts[idx], state.settings, holidayMap);
+        window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: results, brush: b }, idx);
+        renderSummary(results);
+        renderBreakdown(results);
+      },
+      onPaintEnd: function () {
+        persistAll();
+        renderAll();
+      }
+    });
 
     renderSummary(results);
     renderBreakdown(results);
@@ -463,6 +386,7 @@
     renderMonthSelect();
     buildSettingsForm();
     buildBrushBar();
+    buildTemplateSelect();
     renderAll();
   });
 
@@ -481,35 +405,25 @@
   });
   nameInput.addEventListener("change", function () { state.name = nameInput.value; persistAll(); });
 
-  btnViewCalendar.addEventListener("click", function () {
-    state.view = "calendar";
-    try { localStorage.setItem(LS_VIEW, state.view); } catch (e) { }
-    applyView(); buildBrushBar(); renderAll();
-  });
-  btnViewList.addEventListener("click", function () {
-    state.view = "list";
-    try { localStorage.setItem(LS_VIEW, state.view); } catch (e) { }
-    applyView(); renderAll();
-  });
-
   /* Quick actions mutate the whole month at once (delegated, one listener) */
   document.querySelector(".quick-actions").addEventListener("click", function (e) {
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;
     const action = btn.dataset.action;
     const n = Payroll.daysInMonth(state.year, state.month);
+    const blank = function () { return { type: "volno", overtime: false, holidayWork: true }; };
     if (action === "clear" || action === "reset-month") {
-      for (let i = 0; i < n; i++) state.shifts[i] = { type: "volno", overtime: false, holidayWork: true };
+      for (let i = 0; i < n; i++) state.shifts[i] = blank();
     } else if (action === "weekdays-den" || action === "weekdays-noc") {
       const t = action === "weekdays-den" ? "den" : "noc";
       for (let i = 0; i < n; i++) {
         const d = new Date(state.year, state.month, i + 1);
-        if (!Payroll.isWeekend(d)) state.shifts[i] = { type: t, overtime: false, holidayWork: true };
+        state.shifts[i] = Payroll.isWeekend(d) ? blank() : { type: t, overtime: false, holidayWork: true };
       }
     } else if (action === "weekends-off") {
       for (let i = 0; i < n; i++) {
         const d = new Date(state.year, state.month, i + 1);
-        if (Payroll.isWeekend(d)) state.shifts[i] = { type: "volno", overtime: false, holidayWork: true };
+        if (Payroll.isWeekend(d)) state.shifts[i] = blank();
       }
     }
     persistAll();
@@ -534,6 +448,6 @@
   buildYearSelect();
   buildSettingsForm();
   buildBrushBar();
-  applyView();
+  buildTemplateSelect();
   renderAll();
 })();

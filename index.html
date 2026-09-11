@@ -92,18 +92,23 @@
         <button class="chip-btn" data-action="weekends-off" data-i18n="qaWeekendsOff">Weekends → Off</button>
         <button class="chip-btn danger-outline" data-action="reset-month" data-i18n="qaResetMonth">Clear this month</button>
       </div>
+      <div class="template-row">
+        <span class="template-title" data-i18n="tmplTitle">Schedule template</span>
+        <select id="tmplPreset" class="template-select"></select>
+        <select id="tmplShift" class="template-select">
+          <option value="den" data-i18n="type_den">Day shift</option>
+          <option value="noc" data-i18n="type_noc">Night shift</option>
+        </select>
+        <button class="btn primary" id="btnTmplApply" data-i18n="tmplApply">Fill month</button>
+      </div>
     </div>
   </section>
 
   <section class="panel" id="shiftsPanel">
     <div class="panel-head">
       <h2 data-i18n="shiftsTitle">Shifts in month</h2>
-      <div class="view-toggle" role="tablist" aria-label="View">
-        <button id="btnViewCalendar" class="active" data-i18n="viewCalendar">Calendar</button>
-        <button id="btnViewList" data-i18n="viewList">List</button>
-      </div>
     </div>
-    <div class="brush-bar" id="brushBar" hidden></div>
+    <div class="brush-bar" id="brushBar"></div>
     <div class="legend">
       <span><i style="background:var(--off-bg); border:1px solid var(--off-line)"></i><span data-i18n="legendOff">Off</span></span>
       <span><i style="background:var(--day-bg); border:1px solid var(--day-line)"></i><span data-i18n="legendDay">Day 7:00–17:10</span></span>
@@ -114,7 +119,6 @@
       <span data-i18n="legendOvertime">☑ Overtime = +25 % on top of the shift</span>
     </div>
     <div class="calendar-wrap" id="calendarWrap"></div>
-    <div class="day-list" id="dayList" hidden></div>
   </section>
 
   <details class="panel" id="breakdownPanel">
