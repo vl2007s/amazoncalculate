@@ -82,6 +82,20 @@
   langSelect.value = I18n.getLang();
   nameInput.value = state.name;
 
+  /* ============ Theme toggle (initial theme applied by js/theme-init.js) ============ */
+  const themeToggle = document.getElementById("themeToggle");
+  const LS_THEME = "hpp_kalkulacka_theme_v1";
+  function syncThemeIcon() {
+    themeToggle.textContent = document.documentElement.getAttribute("data-theme") === "dark" ? "☀️" : "🌙";
+  }
+  themeToggle.addEventListener("click", function () {
+    const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem(LS_THEME, next); } catch (e) { }
+    syncThemeIcon();
+  });
+  syncThemeIcon();
+
   let toastTimer = null;
   function showSaved() {
     saveIndicator.classList.remove("idle");

@@ -18,6 +18,33 @@
   --shadow-pop: 0 8px 24px rgba(15,17,17,.18);
   --font: 'Inter', -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
+html{color-scheme:light;}
+html[data-theme="dark"]{color-scheme:dark;}
+
+/* Dark theme — same variables, night-shifted surfaces. Accent/CTA colors stay
+   Amazon (yellow CTA, orange brand) for brand consistency. */
+html[data-theme="dark"]{
+  --ink-900:#0B0F14; --ink-800:#131A22; --ink-700:#1C2733;
+  --surface-0:#1F2833; --surface-100:#0F141A; --surface-200:#2A3644;
+  --line:#3A4756; --line-strong:#4A5A68;
+  --text-900:#E8E6E3; --text-600:#B8C4CE; --text-500:#8A99A8;
+  --accent-500:#FF9900; --accent-600:#F08804; --accent-700:#FFB84D;
+  --cta-bg:#FFD814; --cta-hover:#F7CA00; --cta-border:#FCD200;
+  --link:#45AEBC; --link-hover:#FA8900;
+  --success-bg:rgba(6,125,98,.20); --success-text:#5EEAD4; --success-line:rgba(94,234,212,.28);
+  --danger-bg:rgba(248,113,113,.12); --danger-text:#FCA5A5; --danger-line:rgba(252,165,165,.28);
+  --night-bg:rgba(99,102,241,.15); --night-text:#A5B4FC; --night-line:rgba(165,180,252,.28);
+  --day-bg:rgba(255,153,0,.11); --day-text:#FFC46B; --day-line:rgba(255,196,107,.28);
+  --off-bg:rgba(255,255,255,.05); --off-text:#9AA5B1; --off-line:rgba(255,255,255,.12);
+}
+/* ink-900 turns near-black in dark — the totals divider must flip to the (now light) text color */
+html[data-theme="dark"] table.breakdown tr.total-row td{border-top-color:var(--text-900);}
+
+.theme-toggle{
+  background:var(--ink-800); color:#fff; border:1px solid #3A4756; border-radius:var(--radius-sm);
+  padding:8px 11px; font-size:15px; line-height:1;
+}
+.theme-toggle:hover{border-color:#6c7a89;}
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
