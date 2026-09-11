@@ -8,10 +8,12 @@
  *
  * Security notes (deliberate, kept dependency-free):
  *   - binds to 127.0.0.1 by default; set HOST=0.0.0.0 to expose on the LAN
- *   - static files: no dotfiles/dot-directories (no /.git, /.env leaks), traversal via path.relative
+ *   - static files: no dotfiles/dot-directories (no /.git, /.env leaks), traversal via
+ *     path.relative, symlinks never followed, control chars rejected (they crash fs)
  *   - request body capped at 100 KB; malformed URLs answered with 400 instead of crashing
  *   - settings accepted through an explicit key whitelist, coerced to finite numbers
  *   - simple in-memory rate limit for /api (per-process, fine at this scale)
+ *   - tight request/headers timeouts (slowloris), per-request try/catch safety net
  */
 "use strict";
 
@@ -46,9 +48,12 @@ const MIME = {
 const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "SAMEORIGIN",
+  "Referrer-Policy": "no-referrer",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
   "Content-Security-Policy":
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'"
+    "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'; " +
+    "frame-ancestors 'self'"
 };
 
 /* ---------- tiny in-memory rate limiter (per IP, sliding minute window) ---------- */
@@ -227,6 +232,11 @@ function serveStatic(urlPath, res, headOnly) {
   } catch (e) {
     return sendJson(res, 400, { error: "Bad request" });
   }
+  /* Control characters (incl. NUL bytes) make fs calls throw synchronous TypeErrors,
+   * which would take the whole process down — reject them up front. */
+  if (/[\x00-\x1f\x7f]/.test(rel)) {
+    return sendJson(res, 400, { error: "Bad request" });
+  }
   if (rel === "/") rel = "/index.html";
 
   /* Never serve dotfiles/dot-directories (.git, .env, .gitignore) or node_modules —
@@ -244,21 +254,32 @@ function serveStatic(urlPath, res, headOnly) {
     return sendJson(res, 403, { error: "Forbidden" });
   }
 
-  fs.stat(filePath, function (err, st) {
-    if (err || !st.isFile()) return sendJson(res, 404, { error: "Not found" });
-    fs.readFile(filePath, function (readErr, data) {
-      if (readErr) return sendJson(res, 404, { error: "Not found" });
-      const mime = MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream";
-      const headers = Object.assign({ "Content-Type": mime, "Cache-Control": "no-cache" }, SECURITY_HEADERS);
-      res.writeHead(200, headers);
-      res.end(headOnly ? undefined : data);
+  /* lstat (not stat): a symlink inside the tree could point anywhere outside ROOT —
+   * never follow it. */
+  fs.lstat(filePath, function (err, st) {
+    if (err || st.isSymbolicLink() || !st.isFile()) return sendJson(res, 404, { error: "Not found" });
+    /* resolve the real location: parent dirs might be junctions/symlinks pointing
+     * outside ROOT even when the final component is a plain file */
+    fs.realpath(filePath, function (rpErr, realPath) {
+      if (rpErr) return sendJson(res, 404, { error: "Not found" });
+      const relReal = path.relative(ROOT, realPath);
+      if (relReal.startsWith("..") || path.isAbsolute(relReal)) {
+        return sendJson(res, 403, { error: "Forbidden" });
+      }
+      fs.readFile(realPath, function (readErr, data) {
+        if (readErr) return sendJson(res, 404, { error: "Not found" });
+        const mime = MIME[path.extname(realPath).toLowerCase()] || "application/octet-stream";
+        const headers = Object.assign({ "Content-Type": mime, "Cache-Control": "no-cache" }, SECURITY_HEADERS);
+        res.writeHead(200, headers);
+        res.end(headOnly ? undefined : data);
+      });
     });
   });
 }
 
 /* ---------- server ---------- */
 
-const server = http.createServer(function (req, res) {
+function dispatch(req, res) {
   const url = new URL(req.url, "http://localhost");
   const clientIp = req.socket.remoteAddress || "unknown";
 
@@ -286,6 +307,35 @@ const server = http.createServer(function (req, res) {
   if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "Method not allowed" });
 
   serveStatic(url.pathname, res, req.method === "HEAD");
+}
+
+const server = http.createServer(function (req, res) {
+  /* last line of defense: a bug in any handler answers 500 instead of crashing the process */
+  try {
+    dispatch(req, res);
+  } catch (err) {
+    if (!res.headersSent) sendJson(res, 500, { error: "Internal server error" });
+    else { try { res.end(); } catch (e) { /* socket already broken */ } }
+  }
+});
+
+/* slowloris mitigation: headers must arrive fast, whole request within 30 s */
+server.headersTimeout = 10000;  /* must stay > keepAliveTimeout */
+server.requestTimeout = 30000;
+server.keepAliveTimeout = 5000;
+
+/* malformed HTTP at the socket level: answer 400 and move on */
+server.on("clientError", function (err, socket) {
+  try { socket.end("HTTP/1.1 400 Bad Request\r\n\r\n"); } catch (e) { /* dead socket */ }
+});
+
+/* fail fast and readably when the port is taken (usually a forgotten dev instance) */
+server.on("error", function (err) {
+  if (err.code === "EADDRINUSE") {
+    console.error("Port " + PORT + " is already in use — is another instance running?");
+    process.exit(1);
+  }
+  throw err;
 });
 
 server.listen(PORT, HOST, function () {

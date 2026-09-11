@@ -150,14 +150,19 @@ net estimate.
 The server is dependency-free but not naive:
 
 - static file serving blocks dotfiles/dot-directories (`/.git`, `/.env`) and `node_modules`,
-  and validates path containment via `path.relative` (no traversal, no sibling-prefix bypass)
-- malformed URLs (`/%`) get a 400 instead of crashing the process; HEAD is supported
+  validates containment via `path.relative` (no traversal, no sibling-prefix bypass), and
+  never follows symlinks/junctions out of the tree (`lstat` + `realpath` containment)
+- malformed URLs (`/%`) and control characters (NUL bytes etc.) get a 400 instead of
+  crashing the process; HEAD is supported
 - `POST /api/calculate` accepts settings through a strict key whitelist — only known
   numeric fields, coerced to finite numbers (no prototype pollution, no `NaN` in responses)
 - request bodies are capped at 100 KB; `/api/*` endpoints have a simple in-memory
   rate limit (120 req/min per IP; per-process, fine at this scale)
-- responses carry `X-Content-Type-Options`, `X-Frame-Options` and a Content-Security-Policy
-  (Google Fonts is the only third-party origin allowed)
+- tight request/headers timeouts (slowloris mitigation), malformed HTTP gets a clean 400,
+  and a per-request try/catch turns unexpected errors into a 500 instead of a crash
+- responses carry `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy` and a Content-Security-Policy (Google Fonts is the only
+  third-party origin allowed)
 
 ## Adding a language
 
