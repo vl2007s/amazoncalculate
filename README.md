@@ -1,23 +1,31 @@
 # HPP Salary Calculator
 
 A client-side salary calculator for HPP (Czech full-time contracts) with shift planning —
-day / night shifts, overtime, vacation, holidays and bonuses. Pure HTML/CSS/JS frontend
-(no build step), plus a small zero-dependency Node.js API that exposes the same payroll core.
+day / night shifts, overtime, vacation and Czech public-holiday pay. Pure HTML/CSS/JS
+frontend (no build step), plus a small zero-dependency Node.js API over the same payroll core.
 
 Available in **Русский**, **Українська**, **English** and **Čeština**.
 
 ## Features
 
-- **Calendar view** — plan shifts on a month grid; click any day to pick a shift type
-  (off / day / night / vacation / holiday work) and toggle overtime
-- **List view** — classic per-day rows with a shift dropdown
+- **Calendar view** — plan shifts on a month grid; click any day to open a mini dropdown:
+  shift type (off / day / night / vacation), overtime, and the holiday choice.
+  On mobile the dropdown becomes a bottom sheet
+- **Paint brush** — pick a shift and click or drag across days to paint them in
+- **List view** — classic per-day rows with shift and holiday dropdowns
+- **Automatic public holidays** — Czech holidays (Easter computed algorithmically) are
+  detected from the calendar; a day/night shift falling on a holiday gets the holiday
+  supplement automatically — no manual "holiday" day type needed
+- **Holiday choice per law (zákoník práce)** — when a shift touches a public holiday you choose:
+  - **Work it** — normal pay + holiday supplement (double pay for those hours)
+  - **Stay home** — náhrada mzdy: the shift is paid at the average PHV rate, no supplements
+- **Personal rates** — base hourly rate and PHV rate right on the main screen; everyone in
+  the company can have their own. Advanced parameters (paid hours, bonus percentages) live
+  in the settings panel; everything is editable and resettable
 - **Payroll math ported 1:1** from the original Excel workbook (`Vypocet` sheet);
   column letters in the API match the sheet
-- **Czech public holidays** computed algorithmically (Easter included) for any year
 - **Gross → net estimate** (Czech withholdings: 4.5 % health, 7.1 % social, 15 % income tax
   with taxpayer credit)
-- **Company rates** — hourly rate, PHV rate, paid night-shift hours, night/weekend/overtime/
-  holiday/attendance bonuses; everything editable and resettable to defaults
 - **Quick actions** — fill weekdays with day/night shifts, weekends off, clear the month
 - **Autosave** — everything persists in `localStorage`, per month
 - **Print / PDF** — payslip-style printout with a detailed per-day breakdown
@@ -53,12 +61,12 @@ by default; expose it on your network with `HOST=0.0.0.0 npm start`.
 ```
 ├── index.html          # markup
 ├── css/
-│   └── styles.css      # styles (calendar grid, popover, print rules)
+│   └── styles.css      # Amazon/A-to-Z-inspired theme, calendar grid, dropdown, brush
 ├── js/
 │   ├── locales.js      # RU / UK / EN / CS dictionaries (shared with the API)
-│   ├── i18n.js         # i18n engine: lookup, plurals, locale-aware formatting
+│   ├── i18n.js         # i18n engine: lookup, plurals, escaping, locale formatting
 │   ├── payroll.js      # core math: holidays, calcDay, netto (UMD — browser + Node)
-│   ├── calendar.js     # calendar month view + shift picker popover
+│   ├── calendar.js     # calendar month view, dropdown picker, paint brush
 │   └── app.js          # state, persistence, rendering, events
 ├── api/
 │   └── server.js       # zero-dependency Node server: static files + REST API
@@ -103,16 +111,19 @@ Body:
   "lang": "ru",
   "settings": { "baseRate": 218 },
   "shifts": [
-    { "type": "den", "overtime": false },
+    { "type": "den", "overtime": false, "holidayWork": true },
     { "type": "noc", "overtime": true }
   ]
 }
 ```
 
 - `settings` is optional — any subset of the defaults can be overridden.
-- `shifts` is an array of `{ "type": "volno|den|noc|dovolena|svatek", "overtime": bool }`.
+- `shifts` is an array of `{ "type": "volno|den|noc|dovolena|svatek", "overtime": bool, "holidayWork": bool }`.
   Missing entries default to `volno`; the array is padded/truncated to the month length.
-  Overtime only applies to `den`/`noc`.
+  Overtime and `holidayWork` only apply to `den`/`noc`.
+- `holidayWork` (default `true`) decides what happens when the shift touches a public holiday:
+  `true` = worked → normal pay + holiday supplement in column `N`; `false` = stayed home →
+  the day is paid at the PHV average (`J = F × phvRate`) with no supplements.
 
 Response: per-day rows (`F`…`P`, `E` — same letters as the Excel sheet), month totals and a
 net estimate.
@@ -123,15 +134,15 @@ net estimate.
   "month": 7,
   "days": [
     {
-      "day": 1, "date": "2026-07-01", "type": "den", "overtime": false,
-      "weekend": false, "holiday": null,
-      "F": 9.6667, "G": 0, "H": 0, "I": "-",
-      "J": 2109.33, "K": 0, "L": 0, "M": 0, "N": 0, "O": 0, "P": 210.93,
-      "E": 2320.26
+      "day": 6, "date": "2026-07-06", "type": "den", "overtime": false, "holidayWork": true,
+      "weekend": false, "holiday": "День Яна Гуса",
+      "F": 9.6667, "G": 0, "H": 0, "I": "ANO",
+      "J": 2107.33, "K": 0, "L": 0, "M": 0, "N": 2378.68, "O": 0, "P": 210.73,
+      "E": 4696.74
     }
   ],
-  "totals": { "F": 9.67, "G": 0, "H": 0, "J": 2109.33, "K": 0, "L": 0, "M": 0, "N": 0, "O": 0, "P": 210.93, "E": 2320.26 },
-  "netEstimate": 19790
+  "totals": { "F": 9.67, "G": 0, "H": 0, "J": 2107.33, "K": 0, "L": 0, "M": 0, "N": 2378.68, "O": 0, "P": 210.73, "E": 4696.74 },
+  "netEstimate": 4154
 }
 ```
 
@@ -141,7 +152,7 @@ The server is dependency-free but not naive:
 
 - static file serving blocks dotfiles/dot-directories (`/.git`, `/.env`) and `node_modules`,
   and validates path containment via `path.relative` (no traversal, no sibling-prefix bypass)
-- malformed URLs (`/%`) get a 400 instead of crashing the process
+- malformed URLs (`/%`) get a 400 instead of crashing the process; HEAD is supported
 - `POST /api/calculate` accepts settings through a strict key whitelist — only known
   numeric fields, coerced to finite numbers (no prototype pollution, no `NaN` in responses)
 - request bodies are capped at 100 KB; `/api/*` endpoints have a simple in-memory

@@ -1,9 +1,15 @@
-/* Calendar view: month grid with a popover shift picker.
+/**
+ * Calendar view: month grid with an inline dropdown shift picker and a paint brush.
  *
- * CalendarView.render(container, ctx) — ctx: {year, month, shifts, results, onChange(idx, patch)}
- *   - shifts  : [{type, overtime}] for the month (state, mutated via onChange only)
- *   - results : per-day Payroll.calcDay results (for amounts/holiday names)
- *   - onChange: (dayIdx, {type?} | {overtime?}) => void — the app patches state and re-renders
+ * CalendarView.render(container, ctx) — ctx:
+ *   year, month            — the visible month
+ *   shifts                 — [{type, overtime, holidayWork}] for the month (mutated via callbacks only)
+ *   results                — per-day Payroll.calcDay results (amounts, holiday info)
+ *   brush                  — {active, type, overtime}; when active, clicks/drags paint days
+ *   onChange(idx, patch)   — structured edit from the dropdown ({type} | {overtime} | {holidayWork});
+ *                            the app patches state, persists and re-renders
+ *   onPaint(idx)           — brush stroke over one day; app mutates state ONLY (no re-render)
+ *   onPaintEnd()           — brush released; app persists and does a full re-render
  *
  * All dynamic text is attached via textContent, so nothing here can inject markup.
  */
@@ -12,8 +18,10 @@
   const Payroll = root.Payroll, I18n = root.I18n;
 
   /* The popover is a single element reused for every day; it lives inside the
-   * calendar wrap (position:relative) so absolute positioning is cell-relative. */
-  let popover = null, popDay = -1;
+   * calendar wrap (position:relative) so absolute positioning is cell-relative.
+   * On small screens CSS turns it into a fixed bottom sheet instead. */
+  let popover = null;
+  let painting = false; /* true while a brush drag is in progress */
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -33,17 +41,27 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closePopover();
     });
+    document.addEventListener("pointerup", function () {
+      if (painting) {
+        painting = false;
+        if (root.CalendarView._paintEnd) root.CalendarView._paintEnd();
+      }
+    });
   }
 
   function closePopover() {
     if (!popover) return;
     popover.classList.remove("open");
-    popDay = -1;
   }
 
-  /* Place the popover just below the clicked cell, flipping above it near the
+  function isMobileSheet() {
+    return window.matchMedia("(max-width: 680px)").matches;
+  }
+
+  /* Place the dropdown just below the clicked cell, flipping above it near the
    * bottom edge of the wrap, and clamping horizontally so it never overflows. */
   function positionPopover(cell) {
+    if (isMobileSheet()) { popover.style.left = popover.style.top = ""; return; }
     const wrap = popover.parentElement;
     const wrapRect = wrap.getBoundingClientRect();
     const cellRect = cell.getBoundingClientRect();
@@ -58,10 +76,21 @@
     popover.style.top = Math.max(4, top) + "px";
   }
 
-  function openPopover(cell, dayIdx, ctx) {
+  /* One dropdown row: color dot + label + checkmark on the active option. */
+  function optionRow(cls, label, selected, onPick) {
+    const b = el("button", "pop-opt" + (selected ? " sel" : ""));
+    b.type = "button";
+    b.appendChild(el("span", "dot " + cls));
+    b.appendChild(el("span", "opt-label", label));
+    if (selected) b.appendChild(el("span", "check", "✓"));
+    b.addEventListener("click", onPick);
+    return b;
+  }
+
+  function openDropdown(cell, dayIdx, ctx) {
     const date = new Date(ctx.year, ctx.month, dayIdx + 1);
     const entry = ctx.shifts[dayIdx];
-    const holidayName = ctx.results[dayIdx] && ctx.results[dayIdx].holidayName;
+    const res = ctx.results[dayIdx] || {};
 
     popover.innerHTML = "";
 
@@ -74,21 +103,19 @@
     head.appendChild(closeBtn);
     popover.appendChild(head);
 
-    const types = el("div", "pop-types");
-    Payroll.SHIFT_TYPES.forEach(function (type) {
-      const b = el("button", "pop-type" + (entry.type === type ? " sel" : ""), I18n.t("type_" + type));
-      b.type = "button";
-      b.dataset.type = type;
-      b.addEventListener("click", function () {
+    /* shift type options (legacy "svatek" is intentionally not offered) */
+    const list = el("div", "pop-list");
+    Payroll.WORK_TYPES.forEach(function (type) {
+      list.appendChild(optionRow("t-" + type, I18n.t("type_" + type), entry.type === type, function () {
         ctx.onChange(dayIdx, { type: type });
-        closePopover();
-      });
-      types.appendChild(b);
+      }));
     });
-    popover.appendChild(types);
+    popover.appendChild(list);
 
-    /* overtime stays available only for real shifts — mirror the list view rules */
-    const ot = el("label", "pop-ot" + ((entry.type === "den" || entry.type === "noc") ? "" : " disabled"));
+    popover.appendChild(el("div", "pop-sep"));
+
+    /* overtime only for real shifts, and irrelevant on a not-worked holiday */
+    const ot = el("label", "pop-ot" + ((entry.type === "den" || entry.type === "noc") && entry.holidayWork !== false ? "" : " disabled"));
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.checked = !!entry.overtime;
@@ -99,11 +126,91 @@
     ot.appendChild(document.createTextNode(I18n.t("overtime")));
     popover.appendChild(ot);
 
-    if (holidayName) popover.appendChild(el("div", "hol", holidayName));
+    /* holiday choice — only shown when the shift actually touches a holiday */
+    if (res.isHolidayShift) {
+      popover.appendChild(el("div", "pop-sep"));
+      const hol = el("div", "pop-hol");
+      hol.appendChild(el("div", "pop-hol-title", I18n.t("holTitle") + (res.holidayName ? " — " + res.holidayName : "")));
+      hol.appendChild(optionRow("t-den", I18n.t("holWork"), entry.holidayWork !== false, function () {
+        ctx.onChange(dayIdx, { holidayWork: true });
+      }));
+      hol.appendChild(optionRow("t-volno", I18n.t("holOff"), entry.holidayWork === false, function () {
+        ctx.onChange(dayIdx, { holidayWork: false });
+      }));
+      popover.appendChild(hol);
+    }
 
     popover.classList.add("open");
-    popDay = dayIdx;
     positionPopover(cell);
+  }
+
+  /* ---- brush painting ---- */
+
+  function paintDay(container, ctx, day) {
+    ctx.onPaint(day);                    /* app mutates state.shifts[day] */
+    refreshCell(container, ctx, day);    /* update just this cell — a full re-render
+                                            would replace the node under the cursor */
+  }
+
+  /**
+   * In-place refresh of one cell (used by the brush). Cell index math mirrors
+   * render(): grid children = 7 weekday headers + offset pads + day cells.
+   */
+  function refreshCell(container, ctx, dayIdx) {
+    const grid = container.querySelector(".cal-grid");
+    if (!grid || !grid.dataset.offset) return;
+    const offset = parseInt(grid.dataset.offset, 10);
+    const cell = grid.children[7 + offset + dayIdx];
+    if (cell && cell.classList.contains("cal-day") && !cell.classList.contains("pad")) {
+      fillCell(cell, dayIdx, ctx);
+    }
+  }
+
+  function fillCell(cell, day, ctx) {
+    const date = new Date(ctx.year, ctx.month, day + 1);
+    const entry = ctx.shifts[day];
+    const res = ctx.results[day] || {};
+    const today = new Date();
+    const isNahr = !!res.isHolidayShift && entry.holidayWork === false;
+
+    cell.className = "cal-day t-" + entry.type +
+      (Payroll.isWeekend(date) ? " is-weekend" : "") +
+      (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate() ? " is-today" : "") +
+      (isNahr ? " nahrada" : "");
+    if (res.holidayName) cell.dataset.holiday = "1"; else delete cell.dataset.holiday;
+    cell.title = res.holidayName || "";
+
+    cell.setAttribute("aria-label", I18n.fmtShortDate(date) + " — " + I18n.t("type_" + entry.type));
+
+    cell.innerHTML = "";
+    cell.appendChild(el("span", "num", String(day + 1)));
+    cell.appendChild(el("span", "chip", isNahr ? I18n.t("ts_nahr") : I18n.t("ts_" + entry.type)));
+    if (res.holidayName) cell.appendChild(el("span", "hol", res.holidayName));
+    cell.appendChild(el("span", "amt tabular", res.E ? I18n.fmtMoney(res.E) : "–"));
+    if (entry.overtime && !isNahr) cell.appendChild(el("span", "ot-mark", "⚡"));
+  }
+
+  function createCell(day, ctx) {
+    const cell = el("button", "cal-day");
+    cell.type = "button";
+    cell.setAttribute("role", "gridcell");
+    fillCell(cell, day, ctx);
+
+    cell.addEventListener("pointerdown", function (e) {
+      if (ctx.brush.active) {
+        e.preventDefault(); /* keep focus off the button while painting */
+        painting = true;
+        paintDay(cell.closest(".calendar-wrap"), ctx, day);
+      }
+    });
+    cell.addEventListener("pointerenter", function () {
+      if (painting && ctx.brush.active) paintDay(cell.closest(".calendar-wrap"), ctx, day);
+    });
+    cell.addEventListener("click", function () {
+      if (ctx.brush.active) return; /* click was already handled as a paint stroke */
+      openDropdown(cell, day, ctx);
+    });
+    return cell;
   }
 
   function render(container, ctx) {
@@ -113,7 +220,7 @@
     container.appendChild(popover);
     closePopover();
 
-    const grid = el("div", "cal-grid");
+    const grid = el("div", "cal-grid" + (ctx.brush.active ? " brushing" : ""));
     grid.setAttribute("role", "grid");
 
     /* Monday-first weekday header (I18n.weekdayNames is already Monday-first) */
@@ -123,41 +230,15 @@
 
     const n = Payroll.daysInMonth(ctx.year, ctx.month);
     const offset = (new Date(ctx.year, ctx.month, 1).getDay() + 6) % 7;
+    grid.dataset.offset = String(offset);
     for (let i = 0; i < offset; i++) grid.appendChild(el("div", "cal-day pad", " "));
 
-    const today = new Date();
     for (let day = 0; day < n; day++) {
-      const date = new Date(ctx.year, ctx.month, day + 1);
-      const entry = ctx.shifts[day];
-      const res = ctx.results[day];
-
-      const cell = el("button", "cal-day t-" + entry.type);
-      cell.type = "button";
-      cell.setAttribute("role", "gridcell");
-      cell.setAttribute("aria-label", I18n.fmtShortDate(date) + " — " + I18n.t("type_" + entry.type));
-      if (Payroll.isWeekend(date)) cell.classList.add("is-weekend");
-      if (
-        date.getFullYear() === today.getFullYear() &&
-        date.getMonth() === today.getMonth() &&
-        date.getDate() === today.getDate()
-      ) cell.classList.add("is-today");
-      if (res && res.holidayName) {
-        cell.dataset.holiday = "1";
-        cell.title = res.holidayName;
-      }
-
-      cell.appendChild(el("span", "num", String(day + 1)));
-      cell.appendChild(el("span", "chip", I18n.t("ts_" + entry.type)));
-      if (res && res.holidayName) cell.appendChild(el("span", "hol", res.holidayName));
-      cell.appendChild(el("span", "amt tabular", res && res.E ? I18n.fmtMoney(res.E) : "–"));
-      if (entry.overtime) cell.appendChild(el("span", "ot-mark", "⚡"));
-
-      cell.addEventListener("click", function () { openPopover(cell, day, ctx); });
-      grid.appendChild(cell);
+      grid.appendChild(createCell(day, ctx));
     }
 
     container.appendChild(grid);
   }
 
-  root.CalendarView = { render: render, closePopover: closePopover };
+  root.CalendarView = { render: render, closePopover: closePopover, refreshCell: refreshCell };
 })(typeof self !== "undefined" ? self : this);

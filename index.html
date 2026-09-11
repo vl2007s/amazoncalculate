@@ -27,7 +27,7 @@
       <option value="cs">Čeština</option>
     </select>
     <select id="monthSelect" data-i18n-aria="monthAria" aria-label="Month"></select>
-    <input type="number" id="yearInput" data-i18n-aria="yearAria" aria-label="Year" min="2023" max="2035">
+    <select id="yearSelect" data-i18n-aria="yearAria" aria-label="Year"></select>
   </div>
 </div>
 <div class="subbar">
@@ -44,6 +44,23 @@
     <label for="nameInput" data-i18n="nameLabel">Name (optional):</label>
     <input type="text" id="nameInput" data-i18n-placeholder="namePlaceholder" placeholder="For printing the payslip">
   </div>
+
+  <section class="panel rates-panel">
+    <div class="rates-body">
+      <span class="rates-title" data-i18n="myRates">My rates</span>
+      <label class="rates-field">
+        <span data-i18n="f_baseRate">Base hourly rate</span>
+        <input type="number" id="rateBaseInput" min="0" step="0.01" value="218">
+        <span class="unit" data-i18n="u_kch">CZK/h</span>
+      </label>
+      <label class="rates-field">
+        <span data-i18n="f_phvRate">Average PHV rate (vacation/holiday)</span>
+        <input type="number" id="ratePhvInput" min="0" step="0.01" value="246.07">
+        <span class="unit" data-i18n="u_kch">CZK/h</span>
+      </label>
+      <span class="rates-hint" data-i18n="myRatesHint">Personal hourly rates — used for your calculation only</span>
+    </div>
+  </section>
 
   <section class="summary">
     <div class="stat-card primary">
@@ -86,12 +103,14 @@
         <button id="btnViewList" data-i18n="viewList">List</button>
       </div>
     </div>
+    <div class="brush-bar" id="brushBar" hidden></div>
     <div class="legend">
       <span><i style="background:var(--off-bg); border:1px solid var(--off-line)"></i><span data-i18n="legendOff">Off</span></span>
       <span><i style="background:var(--day-bg); border:1px solid var(--day-line)"></i><span data-i18n="legendDay">Day 7:00–17:10</span></span>
       <span><i style="background:var(--night-bg); border:1px solid var(--night-line)"></i><span data-i18n="legendNight">Night 18:00–04:10</span></span>
       <span><i style="background:var(--success-bg); border:1px solid var(--success-line)"></i><span data-i18n="legendVacation">Vacation</span></span>
-      <span><i style="background:var(--danger-bg); border:1px solid var(--danger-line)"></i><span data-i18n="legendHoliday">Holiday (work)</span></span>
+      <span><i style="background:var(--danger-bg); border:1px solid var(--danger-line)"></i><span data-i18n="legendHoliday">Public holiday — auto bonus</span></span>
+      <span><i class="lg-nahr" style="border:2px dashed var(--danger-text)"></i><span data-i18n="legendNahr">Holiday not worked (paid)</span></span>
       <span data-i18n="legendOvertime">☑ Overtime = +25 % on top of the shift</span>
     </div>
     <div class="calendar-wrap" id="calendarWrap"></div>

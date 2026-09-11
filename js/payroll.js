@@ -1,5 +1,14 @@
 /**
- * Core payroll math — 1:1 port of the "Vypocet" sheet from Kalkulator_mzdy_HPP.xlsx.
+ * Core payroll math — 1:1 port of the "Vypocet" sheet from Kalkulator_mzdy_HPP.xlsx,
+ * extended with automatic public-holiday handling per the Czech labour code:
+ *
+ *   - a den/noc shift that touches a public holiday gets the holiday supplement (N)
+ *     AUTOMATICALLY — no manual "svatek" day type needed anymore
+ *   - each such day carries a per-day choice (opts.holidayWork):
+ *       true  -> worked the holiday: normal pay + holiday supplement (double pay)
+ *       false -> stayed home (náhrada mzdy): paid average earnings (F x phvRate),
+ *                no supplements, no attendance bonus
+ *
  * Column letters in calcDay() (F..P, E) intentionally match the original sheet so the
  * workbook stays the readable spec for this code.
  *
@@ -50,8 +59,14 @@
     { group: "g_bonuses", key: "attendanceBonusPct", unit: "u_pct", step: 0.001, pct: true }
   ];
 
-  /** Canonical shift types; order drives select/popover rendering. */
+  /**
+   * All shift types the math understands. "svatek" is a legacy type kept only so
+   * shifts saved by the old version still calculate the same; the UI no longer
+   * offers it — holidays are detected from the calendar automatically.
+   */
   const SHIFT_TYPES = ["volno", "den", "noc", "dovolena", "svatek"];
+  /** Types shown in pickers (svatek handled automatically). */
+  const WORK_TYPES = ["volno", "den", "noc", "dovolena"];
 
   /* ---------- date helpers ---------- */
 
@@ -134,13 +149,28 @@
   function round0(x) { return Math.round(x); }
 
   /**
-   * Per-day payroll. Column letters follow the original sheet:
-   *   F paid hours | G night hours | H weekend hours | I holiday flag (ANO/⚠/-)
+   * Per-day payroll.
+   *
+   * @param date       Date (local noon-safe — always constructed from y/m/d parts)
+   * @param type       shift type from SHIFT_TYPES
+   * @param opts       { overtime: bool, holidayWork: bool } — holidayWork says whether the
+   *                   employee actually came in when the shift touches a public holiday
+   *                   (only meaningful for den/noc; anything not false counts as true)
+   * @param s          settings (see DEFAULT_SETTINGS)
+   * @param holidayMap dateKey -> holiday name, see buildHolidayMap()
+   *
+   * Column letters follow the original sheet:
+   *   F paid hours | G night hours | H weekend hours | I holiday flag (ANO/NÁH/-)
    *   J base pay | K night bonus | L weekend bonus | M overtime | N holiday bonus
    *   O vacation pay | P attendance bonus | E day total
    */
-  function calcDay(date, type, overtime, s, holidayMap) {
-    const isDen = type === "den", isNoc = type === "noc", isDov = type === "dovolena", isSva = type === "svatek", isVolno = type === "volno";
+  function calcDay(date, type, opts, s, holidayMap) {
+    opts = opts || {};
+    const overtime = !!opts.overtime;
+    const holidayWork = opts.holidayWork !== false; /* default: they came in */
+
+    const isDen = type === "den", isNoc = type === "noc", isDov = type === "dovolena",
+      isSva = type === "svatek", isVolno = type === "volno";
     const nextDate = addDays(date, 1);
     const dk = dateKey(date), ndk = dateKey(nextDate);
     const onHoliday = holidayMap.has(dk), nextOnHoliday = holidayMap.has(ndk);
@@ -160,8 +190,25 @@
     else if (isNoc) H = ((isWeekend(date) ? s.nightDayPart : 0) + (isWeekend(nextDate) ? s.nightEndPart : 0)) * F / s.nightPaidHours;
     else H = isWeekend(date) ? F : 0; // dovolena, svatek
 
+    /* a real shift counts as a holiday shift if any of its paid hours fall on the
+     * holiday — for nights that's the start day OR the spillover end day */
+    const isHolidayShift = (isDen || isNoc) && (onHoliday || (isNoc && nextOnHoliday));
+
+    /* náhrada mzdy: the shift fell on a holiday but the employee stayed home.
+     * Paid average earnings for the shift hours, nothing else — no supplements,
+     * no overtime, no attendance bonus (zákoník práce § 115). */
+    if (isHolidayShift && !holidayWork) {
+      const J = F * s.phvRate;
+      return {
+        F: F, G: 0, H: 0, I: "NÁH", J: J, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: J,
+        isWeekend: isWeekend(date), holidayName: holidayMap.get(dk) || null,
+        isHolidayShift: true, holidayWork: false
+      };
+    }
+
     let I;
-    if (isSva) I = "ANO"; else if (onHoliday) I = "⚠"; else I = "-";
+    if (isSva || isHolidayShift) I = "ANO";
+    else I = "-";
 
     let J;
     if (isDov) J = 0; else if (isSva) J = F * s.phvRate; else J = F * s.baseRate;
@@ -172,9 +219,17 @@
     let M = 0;
     if (overtime && (isDen || isNoc)) M = F * s.baseRate * s.overtimeBonusPct;
 
-    /* holiday bonus splits by which side of midnight is the actual holiday */
+    /* holiday supplement (worked case): only for hours actually on the holiday —
+     * a night shift gets the bonus just for the holiday portion. Legacy "svatek"
+     * rows keep the original split formula. */
     let N = 0;
     if (isSva) {
+      const partToday = onHoliday ? s.nightDayPart * F / s.nightPaidHours : 0;
+      const partNext = nextOnHoliday ? s.nightEndPart * F / s.nightPaidHours : 0;
+      N = s.phvRate * s.holidayBonusMult * (partToday + partNext);
+    } else if (isDen && onHoliday) {
+      N = s.phvRate * s.holidayBonusMult * F;
+    } else if (isNoc && (onHoliday || nextOnHoliday)) {
       const partToday = onHoliday ? s.nightDayPart * F / s.nightPaidHours : 0;
       const partNext = nextOnHoliday ? s.nightEndPart * F / s.nightPaidHours : 0;
       N = s.phvRate * s.holidayBonusMult * (partToday + partNext);
@@ -185,7 +240,11 @@
     if (!isDov && !isSva) P = J * s.attendanceBonusPct;
 
     const E = J + K + L + M + N + O + P;
-    return { F: F, G: G, H: H, I: I, J: J, K: K, L: L, M: M, N: N, O: O, P: P, E: E, isWeekend: isWeekend(date), holidayName: onHoliday ? holidayMap.get(dk) : null };
+    return {
+      F: F, G: G, H: H, I: I, J: J, K: K, L: L, M: M, N: N, O: O, P: P, E: E,
+      isWeekend: isWeekend(date), holidayName: onHoliday ? holidayMap.get(dk) : null,
+      isHolidayShift: isHolidayShift, holidayWork: holidayWork
+    };
   }
 
   /** Rough net from gross — Czech withholdings (health 4.5%, social 7.1%, 15% tax
@@ -212,6 +271,7 @@
     DEFAULT_SETTINGS: DEFAULT_SETTINGS,
     SETTINGS_FIELDS: SETTINGS_FIELDS,
     SHIFT_TYPES: SHIFT_TYPES,
+    WORK_TYPES: WORK_TYPES,
     daysInMonth: daysInMonth,
     addDays: addDays,
     isWeekend: isWeekend,

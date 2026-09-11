@@ -164,14 +164,19 @@ function handleCalculate(req, res) {
     const settings = sanitizeSettings(body.settings);
 
     /* Normalize the shift list to exactly the days of the month. Unknown types fall
-     * back to 'volno' and overtime is only meaningful for den/noc — same rules as the UI. */
+     * back to 'volno'; overtime and the holiday worked/stayed-home choice are only
+     * meaningful for den/noc — same rules as the UI. */
     const n = Payroll.daysInMonth(year, month - 1);
     const shifts = [];
     for (let i = 0; i < n; i++) {
       const s = body.shifts[i];
       const type = s && Payroll.SHIFT_TYPES.indexOf(s.type) !== -1 ? s.type : "volno";
-      const overtime = !!(s && s.overtime);
-      shifts.push({ type: type, overtime: (type === "den" || type === "noc") && overtime });
+      const isWorkShift = type === "den" || type === "noc";
+      shifts.push({
+        type: type,
+        overtime: isWorkShift && !!(s && s.overtime),
+        holidayWork: isWorkShift && !(s && s.holidayWork === false)
+      });
     }
 
     const lang = validLang(body.lang) || "en";
@@ -179,12 +184,13 @@ function handleCalculate(req, res) {
 
     const days = shifts.map(function (shift, i) {
       const date = new Date(year, month - 1, i + 1);
-      const r = Payroll.calcDay(date, shift.type, shift.overtime, settings, holidayMap);
+      const r = Payroll.calcDay(date, shift.type, shift, settings, holidayMap);
       return {
         day: i + 1,
         date: Payroll.dateKey(date),
         type: shift.type,
         overtime: shift.overtime,
+        holidayWork: shift.holidayWork,
         weekend: r.isWeekend,
         holiday: r.holidayName,
         /* column letters match the original workbook sheet "Vypocet" */
