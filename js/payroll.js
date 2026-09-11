@@ -1,5 +1,10 @@
-/* Core payroll math — 1:1 port of the "Vypocet" sheet from Kalkulator_mzdy_HPP.xlsx.
-   Exposed as window.Payroll in the browser and via module.exports in Node (for the API). */
+/**
+ * Core payroll math — 1:1 port of the "Vypocet" sheet from Kalkulator_mzdy_HPP.xlsx.
+ * Column letters in calcDay() (F..P, E) intentionally match the original sheet so the
+ * workbook stays the readable spec for this code.
+ *
+ * UMD: window.Payroll in the browser, module.exports in Node (the API reuses this file).
+ */
 (function (root, factory) {
   "use strict";
   if (typeof module !== "undefined" && module.exports) module.exports = factory();
@@ -7,7 +12,7 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  /* Defaults (from the workbook, list "Nastaveni") */
+  /** Company-wide defaults (from the workbook, list "Nastaveni"). */
   const DEFAULT_SETTINGS = {
     baseRate: 218,
     phvRate: 246.07,
@@ -24,7 +29,11 @@
     attendanceBonusPct: 0.10
   };
 
-  /* UI metadata for the settings form; labels are resolved through i18n (keys f_*, g_*). */
+  /**
+   * UI metadata for the settings form — keeps the form, the API whitelist and the
+   * math in sync from a single source. Labels resolve through i18n keys (f_*, g_*).
+   * pct: true means the field is edited as a percent (10) but stored as a fraction (0.10).
+   */
   const SETTINGS_FIELDS = [
     { group: "g_base", key: "baseRate", unit: "u_kch", step: 0.01 },
     { group: "g_base", key: "phvRate", unit: "u_kch", step: 0.01 },
@@ -41,17 +50,23 @@
     { group: "g_bonuses", key: "attendanceBonusPct", unit: "u_pct", step: 0.001, pct: true }
   ];
 
+  /** Canonical shift types; order drives select/popover rendering. */
   const SHIFT_TYPES = ["volno", "den", "noc", "dovolena", "svatek"];
 
-  /* ---- date helpers ---- */
+  /* ---------- date helpers ---------- */
+
   function daysInMonth(year, month0) { return new Date(year, month0 + 1, 0).getDate(); }
   function addDays(d, n) { const c = new Date(d); c.setDate(c.getDate() + n); return c; }
   function isWeekend(d) { const wd = d.getDay(); return wd === 0 || wd === 6; }
+
+  /** Local-date key "YYYY-MM-DD" — used as the holiday map key. */
   function dateKey(d) {
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
-  /* ---- Czech public holidays (mirrors the Velikonoce calc in the workbook) ---- */
+  /* ---------- Czech public holidays ---------- */
+
+  /** Computable Easter (Meeus/Jones/Butcher) — mirrors the Velikonoce calc in the workbook. */
   function easterSunday(year) {
     const a = year % 19, b = Math.floor(year / 100), c = year % 100;
     const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
@@ -63,7 +78,10 @@
     return new Date(year, monthNum - 1, day);
   }
 
-  /* Names are keyed — localized by the UI / API through the "holidays" i18n block. */
+  /**
+   * Holiday definitions as {key, dateFn} so names stay out of the math.
+   * Keys are resolved to localized strings through the "holidays" i18n block.
+   */
   const HOLIDAY_DEFS = [
     { key: "jan1", date: function (y) { return new Date(y, 0, 1); } },
     { key: "goodFriday", date: function (y) { return addDays(easterSunday(y), -2); } },
@@ -80,13 +98,14 @@
     { key: "dec26", date: function (y) { return new Date(y, 11, 26); } }
   ];
 
-  /* holidayName(key, lang, locales) — localized name or the raw key if unknown. */
+  /** Localized holiday name; falls back to the raw key if a locale misses it. */
   function holidayName(key, lang, locales) {
     const loc = locales && locales[lang];
     if (loc && loc.holidays && loc.holidays[key]) return loc.holidays[key];
     return key;
   }
 
+  /** All holidays for one year with localized names. */
   function computeHolidays(year, lang, locales) {
     return HOLIDAY_DEFS.map(function (h) {
       const date = h.date(year);
@@ -94,8 +113,12 @@
     });
   }
 
+  /**
+   * dateKey -> holiday name for (year - 1, year, year + 1).
+   * The extra years matter: a night shift on Dec 31 spills into Jan 1 and the
+   * holiday-bonus split needs to know about the next day.
+   */
   function buildHolidayMap(year, lang, locales) {
-    /* +/- 1 year: night shifts starting on Dec 31 spill into Jan 1. */
     const map = new Map();
     computeHolidays(year - 1, lang, locales)
       .concat(computeHolidays(year, lang, locales))
@@ -104,10 +127,18 @@
     return map;
   }
 
-  /* ---- payroll math (column letters match the original sheet) ---- */
+  /* ---------- payroll math ---------- */
+
+  /** Round like the workbook: 4 decimals for hour fractions, whole crowns for money. */
   function round4(x) { return Math.round(x * 10000) / 10000; }
   function round0(x) { return Math.round(x); }
 
+  /**
+   * Per-day payroll. Column letters follow the original sheet:
+   *   F paid hours | G night hours | H weekend hours | I holiday flag (ANO/⚠/-)
+   *   J base pay | K night bonus | L weekend bonus | M overtime | N holiday bonus
+   *   O vacation pay | P attendance bonus | E day total
+   */
   function calcDay(date, type, overtime, s, holidayMap) {
     const isDen = type === "den", isNoc = type === "noc", isDov = type === "dovolena", isSva = type === "svatek", isVolno = type === "volno";
     const nextDate = addDays(date, 1);
@@ -122,6 +153,7 @@
     let G = 0;
     if (isNoc) G = round4((s.nightDayPartNight + s.nightEndPartNight) * F / s.nightPaidHours);
 
+    /* weekend hours account for night shifts crossing midnight into a weekend day */
     let H = 0;
     if (isVolno) H = 0;
     else if (isDen) H = isWeekend(date) ? F : 0;
@@ -140,6 +172,7 @@
     let M = 0;
     if (overtime && (isDen || isNoc)) M = F * s.baseRate * s.overtimeBonusPct;
 
+    /* holiday bonus splits by which side of midnight is the actual holiday */
     let N = 0;
     if (isSva) {
       const partToday = onHoliday ? s.nightDayPart * F / s.nightPaidHours : 0;
@@ -155,6 +188,8 @@
     return { F: F, G: G, H: H, I: I, J: J, K: K, L: L, M: M, N: N, O: O, P: P, E: E, isWeekend: isWeekend(date), holidayName: onHoliday ? holidayMap.get(dk) : null };
   }
 
+  /** Rough net from gross — Czech withholdings (health 4.5%, social 7.1%, 15% tax
+   *  with the monthly taxpayer credit, rounded like payroll software does). */
   function calcNetto(gross) {
     const zdrav = round0(gross * 0.045);
     const socialni = round0(gross * 0.071);
@@ -163,7 +198,7 @@
     return gross - zdrav - socialni - dan;
   }
 
-  /* Sum a per-day result array. */
+  /** Sum a per-day result array into month totals (column letters again). */
   function calcTotals(results) {
     const totals = { F: 0, G: 0, H: 0, J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0 };
     results.forEach(function (r) {

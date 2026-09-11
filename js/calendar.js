@@ -1,9 +1,18 @@
 /* Calendar view: month grid with a popover shift picker.
-   CalendarView.render(container, ctx) — ctx: {year, month, shifts, results, onChange(idx, patch)} */
+ *
+ * CalendarView.render(container, ctx) — ctx: {year, month, shifts, results, onChange(idx, patch)}
+ *   - shifts  : [{type, overtime}] for the month (state, mutated via onChange only)
+ *   - results : per-day Payroll.calcDay results (for amounts/holiday names)
+ *   - onChange: (dayIdx, {type?} | {overtime?}) => void — the app patches state and re-renders
+ *
+ * All dynamic text is attached via textContent, so nothing here can inject markup.
+ */
 (function (root) {
   "use strict";
   const Payroll = root.Payroll, I18n = root.I18n;
 
+  /* The popover is a single element reused for every day; it lives inside the
+   * calendar wrap (position:relative) so absolute positioning is cell-relative. */
   let popover = null, popDay = -1;
 
   function el(tag, cls, text) {
@@ -15,7 +24,8 @@
 
   function buildPopover(wrap) {
     popover = document.getElementById("dayPopover");
-    wrap.appendChild(popover); /* absolutely positioned within the calendar wrap */
+    wrap.appendChild(popover);
+    /* stop clicks inside the popover from reaching the document-level closer */
     popover.addEventListener("click", function (e) { e.stopPropagation(); });
     document.addEventListener("click", function (e) {
       if (popover.classList.contains("open") && !popover.contains(e.target)) closePopover();
@@ -31,6 +41,8 @@
     popDay = -1;
   }
 
+  /* Place the popover just below the clicked cell, flipping above it near the
+   * bottom edge of the wrap, and clamping horizontally so it never overflows. */
   function positionPopover(cell) {
     const wrap = popover.parentElement;
     const wrapRect = wrap.getBoundingClientRect();
@@ -38,7 +50,6 @@
     const pw = popover.offsetWidth, ph = popover.offsetHeight;
     let left = cellRect.left - wrapRect.left + wrap.scrollLeft;
     let top = cellRect.bottom - wrapRect.top + wrap.scrollTop + 6;
-    /* flip above when there is no room below */
     if (cellRect.bottom - wrapRect.top + ph + 24 > wrap.clientHeight) {
       top = cellRect.top - wrapRect.top + wrap.scrollTop - ph - 6;
     }
@@ -76,6 +87,7 @@
     });
     popover.appendChild(types);
 
+    /* overtime stays available only for real shifts — mirror the list view rules */
     const ot = el("label", "pop-ot" + ((entry.type === "den" || entry.type === "noc") ? "" : " disabled"));
     const cb = document.createElement("input");
     cb.type = "checkbox";
@@ -96,14 +108,15 @@
 
   function render(container, ctx) {
     if (!popover || popover.parentElement !== container) buildPopover(container);
+    /* rebuild the grid from scratch every render; keep the popover element alive */
     container.innerHTML = "";
-    container.appendChild(popover); /* keep popover after innerHTML reset */
+    container.appendChild(popover);
     closePopover();
 
     const grid = el("div", "cal-grid");
     grid.setAttribute("role", "grid");
 
-    /* Monday-first weekday header */
+    /* Monday-first weekday header (I18n.weekdayNames is already Monday-first) */
     I18n.weekdayNames().forEach(function (name) {
       grid.appendChild(el("div", "cal-wd", name));
     });
@@ -136,8 +149,7 @@
       cell.appendChild(el("span", "num", String(day + 1)));
       cell.appendChild(el("span", "chip", I18n.t("ts_" + entry.type)));
       if (res && res.holidayName) cell.appendChild(el("span", "hol", res.holidayName));
-      const amt = el("span", "amt tabular", res && res.E ? I18n.fmtMoney(res.E) : "–");
-      cell.appendChild(amt);
+      cell.appendChild(el("span", "amt tabular", res && res.E ? I18n.fmtMoney(res.E) : "–"));
       if (entry.overtime) cell.appendChild(el("span", "ot-mark", "⚡"));
 
       cell.addEventListener("click", function () { openPopover(cell, day, ctx); });

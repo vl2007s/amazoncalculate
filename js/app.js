@@ -1,5 +1,11 @@
 /* App wiring: state, localStorage persistence, rendering (list view, calendar view,
-   summary, breakdown, settings form), language switching. */
+ * summary, breakdown, settings form), language switching.
+ *
+ * State shape:
+ *   settings — company rates (see Payroll.DEFAULT_SETTINGS)
+ *   shifts   — [{type, overtime}] for the currently selected month, length = days in month
+ * Persistence keys are versioned ("_v1") so a future schema change can migrate cleanly.
+ */
 (function () {
   "use strict";
   const Payroll = window.Payroll, I18n = window.I18n;
@@ -19,6 +25,8 @@
   }
   function saveSettings(s) { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(s)); } catch (e) { } }
 
+  /* Shift arrays are stored per month; tolerate truncated/corrupt entries by
+   * normalizing every slot into a valid {type, overtime} pair. */
   function loadShifts(year, month, daysInMonth) {
     const key = lsShiftsKey(year, month);
     let arr = null;
@@ -89,6 +97,7 @@
   }
 
   /* ============ Settings form ============ */
+  /* Built from Payroll.SETTINGS_FIELDS so the form always matches the math. */
   function buildSettingsForm() {
     settingsGrid.innerHTML = "";
     const groups = {};
@@ -106,6 +115,7 @@
         label.setAttribute("for", "set_" + f.key);
         const input = document.createElement("input");
         input.type = "number"; input.step = f.step; input.id = "set_" + f.key;
+        /* pct fields are edited as percents (10) but stored as fractions (0.10) */
         input.value = f.pct ? Payroll.round4(state.settings[f.key] * 100) : state.settings[f.key];
         input.addEventListener("change", function () {
           let v = parseFloat(input.value);
@@ -124,6 +134,8 @@
   }
 
   /* ============ Day list view ============ */
+  /* One row per day. Dynamic text (holiday names) goes through textContent —
+   * never innerHTML — so locale data can't become an injection vector. */
   function renderDayList(holidayMap) {
     const n = Payroll.daysInMonth(state.year, state.month);
     dayList.innerHTML = "";
@@ -138,8 +150,11 @@
       row.className = "day-row" + (res.isWeekend ? " is-weekend" : "") + (res.holidayName ? " is-holiday" : "");
 
       const dateCol = document.createElement("div"); dateCol.className = "date-col";
-      dateCol.innerHTML = '<div class="d1">' + I18n.fmtShortDate(date) + "</div>" +
-        (res.holidayName ? '<div class="d2">' + res.holidayName + "</div>" : '<div class="d2">&nbsp;</div>');
+      const d1 = document.createElement("div"); d1.className = "d1";
+      d1.textContent = I18n.fmtShortDate(date);
+      const d2 = document.createElement("div"); d2.className = "d2";
+      d2.textContent = res.holidayName || " ";
+      dateCol.appendChild(d1); dateCol.appendChild(d2);
       row.appendChild(dateCol);
 
       const select = document.createElement("select");
@@ -158,6 +173,7 @@
       });
       row.appendChild(select);
 
+      /* Overtime only makes sense for actual shifts (den/noc) */
       const otLabel = document.createElement("label");
       otLabel.className = "ot-label" + ((entry.type === "den" || entry.type === "noc") ? "" : " disabled");
       const otCheck = document.createElement("input");
@@ -194,12 +210,14 @@
     document.getElementById("sumDays").textContent = workedDays + " " + I18n.plural(workedDays, I18n.t("daysForms"));
   }
 
+  /* The breakdown is the one place where building an HTML string is far more
+   * readable than dozens of createElement calls; esc() keeps it safe. */
   function renderBreakdown(results) {
     const cols = [
       ["colNum"], ["colDate"], ["colType"], ["colHours"], ["colNightH"], ["colWeekendH"], ["colHolidayQ"],
       ["colBase"], ["colNightP"], ["colWeekendP"], ["colOtP"], ["colHolidayP"], ["colVacation"], ["colAttend"], ["colTotal"]
     ];
-    let thead = "<thead><tr>" + cols.map(function (c) { return "<th>" + I18n.t(c[0]) + "</th>"; }).join("") + "</tr></thead>";
+    let thead = "<thead><tr>" + cols.map(function (c) { return "<th>" + I18n.esc(I18n.t(c[0])) + "</th>"; }).join("") + "</tr></thead>";
     let rows = "";
     const totals = { F: 0, G: 0, H: 0, J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0 };
     results.forEach(function (r, i) {
@@ -208,12 +226,12 @@
       Object.keys(totals).forEach(function (k) { totals[k] += r[k]; });
       rows += '<tr class="' + (r.isWeekend ? "wknd" : "") + '">' +
         "<td>" + (i + 1) + "</td>" +
-        "<td>" + I18n.fmtShortDate(date) + "</td>" +
-        "<td>" + I18n.t("type_" + shift.type) + (shift.overtime ? I18n.t("otSuffix") : "") + "</td>" +
+        "<td>" + I18n.esc(I18n.fmtShortDate(date)) + "</td>" +
+        "<td>" + I18n.esc(I18n.t("type_" + shift.type) + (shift.overtime ? I18n.t("otSuffix") : "")) + "</td>" +
         '<td class="tabular">' + I18n.fmtNum(r.F) + "</td>" +
         '<td class="tabular">' + I18n.fmtNum(r.G) + "</td>" +
         '<td class="tabular">' + I18n.fmtNum(r.H) + "</td>" +
-        "<td>" + r.I + "</td>" +
+        "<td>" + I18n.esc(r.I) + "</td>" +
         '<td class="tabular">' + I18n.fmtMoney(r.J) + "</td>" +
         '<td class="tabular">' + I18n.fmtMoney(r.K) + "</td>" +
         '<td class="tabular">' + I18n.fmtMoney(r.L) + "</td>" +
@@ -224,7 +242,7 @@
         '<td class="tabular">' + I18n.fmtMoney(r.E) + "</td>" +
         "</tr>";
     });
-    rows += '<tr class="total-row"><td>' + I18n.t("totalRow") + "</td><td></td><td></td>" +
+    rows += '<tr class="total-row"><td>' + I18n.esc(I18n.t("totalRow")) + "</td><td></td><td></td>" +
       '<td class="tabular">' + I18n.fmtNum(totals.F) + "</td>" +
       '<td class="tabular">' + I18n.fmtNum(totals.G) + "</td>" +
       '<td class="tabular">' + I18n.fmtNum(totals.H) + "</td><td></td>" +
@@ -260,6 +278,8 @@
     monthSelect.value = state.month;
   }
 
+  /* Single entry point re-render. The full-month result set is computed once and
+   * shared between the active view, the summary and the breakdown. */
   function renderAll() {
     document.documentElement.lang = I18n.getLang();
     document.title = I18n.t("appTitle");
@@ -267,7 +287,6 @@
 
     const holidayMap = holidayMapFor(state.year);
 
-    /* full month result set, shared by both views */
     const n = Payroll.daysInMonth(state.year, state.month);
     const results = [];
     for (let i = 0; i < n; i++) {
@@ -308,6 +327,7 @@
     renderAll();
   });
 
+  /* Changing month/year reloads that month's shifts from storage */
   monthSelect.addEventListener("change", function () {
     state.month = parseInt(monthSelect.value, 10);
     state.shifts = loadShifts(state.year, state.month, Payroll.daysInMonth(state.year, state.month));
@@ -333,6 +353,7 @@
     applyView(); renderAll();
   });
 
+  /* Quick actions mutate the whole month at once (delegated, one listener) */
   document.querySelector(".quick-actions").addEventListener("click", function (e) {
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;
@@ -363,6 +384,7 @@
     renderAll();
   });
   document.getElementById("btnPrint").addEventListener("click", function () {
+    /* the print stylesheet hides interactive controls but keeps the breakdown */
     document.getElementById("breakdownPanel").open = true;
     window.print();
   });

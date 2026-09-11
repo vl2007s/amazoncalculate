@@ -1,5 +1,17 @@
-/* UI dictionaries. Also required by the Node API (for localized holiday names).
-   Add a language by dropping a new block here and an <option> in index.html. */
+/**
+ * UI dictionaries — the single source of truth for all user-facing text.
+ * Also required by the Node API (for localized holiday names), so this file
+ * is UMD like payroll.js.
+ *
+ * Key conventions (keep them when adding a language):
+ *   type_*  — long shift type labels | ts_* — short labels for calendar cells
+ *   col_*   — breakdown table headers | f_* and g_* — settings fields and their groups
+ *   u_*     — units (Kč/h, h, %, ×)   | holidays — Czech holiday names by key
+ *   daysForms — plural word forms ["singular", "2-4", "5+"] consumed by I18n.plural()
+ *
+ * To add a language: drop a new block here (copy `en`), add an <option> in
+ * index.html, and extend plural() in js/i18n.js if the locale needs new rules.
+ */
 (function (root, factory) {
   "use strict";
   if (typeof module !== "undefined" && module.exports) module.exports = factory();

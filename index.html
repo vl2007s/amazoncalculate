@@ -128,6 +128,8 @@
 <div class="toast" id="toast" data-i18n="toastSaved">✓ Saved</div>
 <div class="day-popover" id="dayPopover" role="dialog" aria-modal="false"></div>
 
+<!-- Plain scripts, no build step. Order matters: each module attaches to window and
+     is consumed by the next one (locales → i18n → payroll → calendar → app). -->
 <script src="js/locales.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/payroll.js"></script>

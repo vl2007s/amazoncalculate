@@ -1,10 +1,18 @@
 /* Zero-dependency Node server: REST API over the shared payroll core + static hosting
-   for the frontend. Run from the repo root:  node api/server.js   (or: npm start)
-   Endpoints:
-     GET  /api/health               -> {status, version}
-     GET  /api/holidays?year=YYYY&lang=ru|uk|en|cs
-     POST /api/calculate            -> {year, month, settings?, shifts:[{type,overtime}]}
-*/
+ * for the frontend. Run from the repo root:  node api/server.js   (or: npm start)
+ *
+ * Endpoints:
+ *   GET  /api/health               -> {status, service, time}
+ *   GET  /api/holidays?year=YYYY&lang=ru|uk|en|cs
+ *   POST /api/calculate            -> {year, month, settings?, shifts:[{type,overtime}]}
+ *
+ * Security notes (deliberate, kept dependency-free):
+ *   - binds to 127.0.0.1 by default; set HOST=0.0.0.0 to expose on the LAN
+ *   - static files: no dotfiles/dot-directories (no /.git, /.env leaks), traversal via path.relative
+ *   - request body capped at 100 KB; malformed URLs answered with 400 instead of crashing
+ *   - settings accepted through an explicit key whitelist, coerced to finite numbers
+ *   - simple in-memory rate limit for /api (per-process, fine at this scale)
+ */
 "use strict";
 
 const http = require("http");
@@ -15,9 +23,11 @@ const { URL } = require("url");
 const Payroll = require("../js/payroll.js");
 const LOCALES = require("../js/locales.js");
 
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT, 10) || 3000;
+/* Secure by default: localhost only. HOST=0.0.0.0 makes it reachable on the network. */
+const HOST = process.env.HOST || "127.0.0.1";
 const ROOT = path.join(__dirname, "..");
-const MAX_BODY = 100 * 1024;
+const MAX_BODY = 100 * 1024; /* 100 KB is far beyond any legitimate payroll payload */
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -31,13 +41,45 @@ const MIME = {
   ".txt": "text/plain; charset=utf-8"
 };
 
-/* ---------- helpers ---------- */
+/* Static responses get a small, honest hardening header set.
+ * CSP allows Google Fonts (the only third-party dependency of the frontend). */
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "SAMEORIGIN",
+  "Content-Security-Policy":
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'self'"
+};
+
+/* ---------- tiny in-memory rate limiter (per IP, sliding minute window) ---------- */
+
+const RATE_MAX = 120;        /* requests per window per IP */
+const RATE_WINDOW_MS = 60000;
+const rateHits = new Map();  /* ip -> { count, resetAt } */
+
+function rateLimited(ip) {
+  const now = Date.now();
+  const hit = rateHits.get(ip);
+  if (!hit || now > hit.resetAt) {
+    rateHits.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  hit.count += 1;
+  /* opportunistic cleanup so the map can't grow without bound */
+  if (rateHits.size > 5000) {
+    rateHits.forEach(function (v, k) { if (now > v.resetAt) rateHits.delete(k); });
+  }
+  return hit.count > RATE_MAX;
+}
+
+/* ---------- response / request helpers ---------- */
 
 function sendJson(res, status, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*"
+    "Access-Control-Allow-Origin": "*",
+    "X-Content-Type-Options": "nosniff"
   });
   res.end(body);
 }
@@ -93,6 +135,18 @@ function handleHolidays(url, res) {
   sendJson(res, 200, { year: year, lang: lang, holidays: holidays });
 }
 
+/* Merge caller-provided settings over the defaults through a strict whitelist:
+ * only known numeric keys, only finite values — no __proto__ games, no NaN in output. */
+function sanitizeSettings(input) {
+  const out = Object.assign({}, Payroll.DEFAULT_SETTINGS);
+  if (!input || typeof input !== "object") return out;
+  Payroll.SETTINGS_FIELDS.forEach(function (f) {
+    const v = input[f.key];
+    if (typeof v === "number" && isFinite(v) && v >= 0) out[f.key] = v;
+  });
+  return out;
+}
+
 function handleCalculate(req, res) {
   readBody(req).then(function (body) {
     const year = parseInt(body.year, 10);
@@ -107,8 +161,10 @@ function handleCalculate(req, res) {
       return sendJson(res, 400, { error: "Field 'shifts' must be an array of {type, overtime}" });
     }
 
-    const settings = Object.assign({}, Payroll.DEFAULT_SETTINGS, body.settings || {});
+    const settings = sanitizeSettings(body.settings);
 
+    /* Normalize the shift list to exactly the days of the month. Unknown types fall
+     * back to 'volno' and overtime is only meaningful for den/noc — same rules as the UI. */
     const n = Payroll.daysInMonth(year, month - 1);
     const shifts = [];
     for (let i = 0; i < n; i++) {
@@ -137,12 +193,13 @@ function handleCalculate(req, res) {
       };
     });
 
-    const totals = Payroll.calcTotals(days.map(function (d) { return d; }));
-    delete totals.I;
+    const totals = Payroll.calcTotals(days);
     const netEstimate = Payroll.calcNetto(totals.E);
 
     sendJson(res, 200, {
-      year: year, month: month, lang: lang,
+      year: year,
+      month: month,
+      lang: lang,
       settings: settings,
       days: days,
       totals: totals,
@@ -155,19 +212,41 @@ function handleCalculate(req, res) {
 
 /* ---------- static files ---------- */
 
-function serveStatic(urlPath, res) {
-  let rel = decodeURIComponent(urlPath);
-  if (rel === "/") rel = "/index.html";
-  const filePath = path.normalize(path.join(ROOT, rel));
-  if (!filePath.startsWith(ROOT)) return sendJson(res, 403, { error: "Forbidden" });
-  if (rel.endsWith(path.sep) || fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
-    return sendJson(res, 404, { error: "Not found" });
+function serveStatic(urlPath, res, headOnly) {
+  /* decodeURIComponent throws on malformed escapes (e.g. "/%") — that must be a 400,
+   * not an uncaught exception that takes the server down. */
+  let rel;
+  try {
+    rel = decodeURIComponent(urlPath);
+  } catch (e) {
+    return sendJson(res, 400, { error: "Bad request" });
   }
-  fs.readFile(filePath, function (err, data) {
-    if (err) return sendJson(res, 404, { error: "Not found" });
-    const mime = MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream";
-    res.writeHead(200, { "Content-Type": mime, "Cache-Control": "no-cache" });
-    res.end(data);
+  if (rel === "/") rel = "/index.html";
+
+  /* Never serve dotfiles/dot-directories (.git, .env, .gitignore) or node_modules —
+   * these checks run on the URL segments, before any filesystem resolution. */
+  const segments = rel.split("/").filter(Boolean);
+  if (segments.some(function (seg) { return seg.charAt(0) === "." || seg === "node_modules"; })) {
+    return sendJson(res, 403, { error: "Forbidden" });
+  }
+
+  const filePath = path.normalize(path.join(ROOT, rel));
+  /* Containment via path.relative: immune to sibling-prefix tricks (ROOT="D:\mzda"
+   * must not match "D:\mzda-other\...") and to separator/casing edge cases. */
+  const relToRoot = path.relative(ROOT, filePath);
+  if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
+    return sendJson(res, 403, { error: "Forbidden" });
+  }
+
+  fs.stat(filePath, function (err, st) {
+    if (err || !st.isFile()) return sendJson(res, 404, { error: "Not found" });
+    fs.readFile(filePath, function (readErr, data) {
+      if (readErr) return sendJson(res, 404, { error: "Not found" });
+      const mime = MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream";
+      const headers = Object.assign({ "Content-Type": mime, "Cache-Control": "no-cache" }, SECURITY_HEADERS);
+      res.writeHead(200, headers);
+      res.end(headOnly ? undefined : data);
+    });
   });
 }
 
@@ -175,6 +254,7 @@ function serveStatic(urlPath, res) {
 
 const server = http.createServer(function (req, res) {
   const url = new URL(req.url, "http://localhost");
+  const clientIp = req.socket.remoteAddress || "unknown";
 
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
@@ -185,6 +265,11 @@ const server = http.createServer(function (req, res) {
     return res.end();
   }
 
+  /* rate limit only the API — static assets stay unlimited */
+  if (url.pathname.startsWith("/api/") && rateLimited(clientIp)) {
+    return sendJson(res, 429, { error: "Too many requests, slow down" });
+  }
+
   if (url.pathname === "/api/health" && req.method === "GET") return handleHealth(req, res);
   if (url.pathname === "/api/holidays" && req.method === "GET") return handleHolidays(url, res);
   if (url.pathname === "/api/calculate" && req.method === "POST") return handleCalculate(req, res);
@@ -192,13 +277,14 @@ const server = http.createServer(function (req, res) {
   if (url.pathname.startsWith("/api/")) {
     return sendJson(res, 404, { error: "Unknown API endpoint", path: url.pathname });
   }
-  if (req.method !== "GET") return sendJson(res, 405, { error: "Method not allowed" });
+  if (req.method !== "GET" && req.method !== "HEAD") return sendJson(res, 405, { error: "Method not allowed" });
 
-  serveStatic(url.pathname, res);
+  serveStatic(url.pathname, res, req.method === "HEAD");
 });
 
-server.listen(PORT, function () {
+server.listen(PORT, HOST, function () {
   console.log("HPP salary calculator running:");
   console.log("  app:  http://localhost:" + PORT + "/");
   console.log("  api:  http://localhost:" + PORT + "/api/health");
+  if (HOST === "127.0.0.1") console.log("  (localhost only — set HOST=0.0.0.0 to expose on the LAN)");
 });

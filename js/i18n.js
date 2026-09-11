@@ -1,10 +1,18 @@
 /* Tiny i18n engine: dictionary lookup, plural forms, locale-aware number/date formatting,
-   and data-i18n attribute application for static markup. */
+ * and data-i18n attribute application for static markup.
+ *
+ * Conventions:
+ *   - t(key) resolves against the active locale, falls back to English, then to the key
+ *   - plural(n, forms) takes locale-specific word forms ("день/дня/дней" style)
+ *   - esc() is the single escape helper for the rare cases where we build HTML strings;
+ *     everywhere else prefer textContent/setAttribute over innerHTML
+ */
 (function (root) {
   "use strict";
   const LOCALES = root.PAYROLL_LOCALES || {};
   const LS_LANG = "hpp_kalkulacka_lang_v1";
 
+  /* Browser language wins on first visit; the user's explicit choice is stored after that. */
   function detect() {
     let saved = null;
     try { saved = localStorage.getItem(LS_LANG); } catch (e) { /* private mode */ }
@@ -31,7 +39,8 @@
   function getLang() { return lang; }
   function locales() { return LOCALES; }
 
-  /* Slavic plural rules (ru/uk/cs) + default one/other. */
+  /* Slavic-style 3-form plurals (ru/uk/cs) + default one/other.
+   * forms = [singular, paucal(2-4), genitive plural(5+)] for Slavic locales. */
   function plural(n, forms) {
     n = Math.abs(n);
     const m100 = n % 100, m10 = n % 10;
@@ -46,15 +55,24 @@
     return forms[Math.min(idx, forms.length - 1)];
   }
 
+  /* HTML-escape for the few places that still build markup as strings
+   * (the breakdown table). Output of t()/Intl is trusted, user input is not —
+   * belt and suspenders either way. */
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
   function nf(options) { return new Intl.NumberFormat(lang, options); }
 
   function fmtMoney(x) {
-    return nf({ maximumFractionDigits: 0 }).format(x) + " " + t("currency");
+    return nf({ maximumFractionDigits: 0 }).format(x) + " " + t("currency");
   }
   function fmtNum(x, maxFrac) {
     return nf({ maximumFractionDigits: maxFrac === undefined ? 2 : maxFrac }).format(x);
   }
-  function fmtHours(x) { return fmtNum(x) + " " + t("hoursUnit"); }
+  function fmtHours(x) { return fmtNum(x) + " " + t("hoursUnit"); }
 
   function fmtShortDate(d) {
     return new Intl.DateTimeFormat(lang, { weekday: "short", day: "numeric", month: "numeric" }).format(d);
@@ -71,7 +89,8 @@
     return out;
   }
 
-  /* Apply translations to [data-i18n] / [data-i18n-placeholder] / [data-i18n-aria] inside rootEl. */
+  /* Apply translations to [data-i18n] / [data-i18n-placeholder] / [data-i18n-aria] inside rootEl.
+   * Only touches leaf elements — markup inside them (icons, chevrons) is preserved. */
   function apply(rootEl) {
     const scope = rootEl || document;
     scope.querySelectorAll("[data-i18n]").forEach(function (el) {
@@ -87,7 +106,7 @@
 
   root.I18n = {
     t: t, setLang: setLang, getLang: getLang, locales: locales,
-    plural: plural, nf: nf,
+    plural: plural, esc: esc, nf: nf,
     fmtMoney: fmtMoney, fmtNum: fmtNum, fmtHours: fmtHours,
     fmtShortDate: fmtShortDate, monthName: monthName, weekdayNames: weekdayNames,
     apply: apply

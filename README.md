@@ -45,7 +45,8 @@ npm start          # node api/server.js
 # app: http://localhost:3000/
 ```
 
-Set a custom port with `PORT=8080 npm start`.
+Set a custom port with `PORT=8080 npm start`. The server binds to localhost only
+by default; expose it on your network with `HOST=0.0.0.0 npm start`.
 
 ## Project structure
 
@@ -133,6 +134,20 @@ net estimate.
   "netEstimate": 19790
 }
 ```
+
+## Security notes
+
+The server is dependency-free but not naive:
+
+- static file serving blocks dotfiles/dot-directories (`/.git`, `/.env`) and `node_modules`,
+  and validates path containment via `path.relative` (no traversal, no sibling-prefix bypass)
+- malformed URLs (`/%`) get a 400 instead of crashing the process
+- `POST /api/calculate` accepts settings through a strict key whitelist — only known
+  numeric fields, coerced to finite numbers (no prototype pollution, no `NaN` in responses)
+- request bodies are capped at 100 KB; `/api/*` endpoints have a simple in-memory
+  rate limit (120 req/min per IP; per-process, fine at this scale)
+- responses carry `X-Content-Type-Options`, `X-Frame-Options` and a Content-Security-Policy
+  (Google Fonts is the only third-party origin allowed)
 
 ## Adding a language
 
