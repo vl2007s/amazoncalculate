@@ -8,14 +8,11 @@ Available in **Русский**, **Українська**, **English** and **Če
 
 ## Features
 
-- **Calendar view** — plan shifts on a month grid; click any day to open a mini dropdown:
-  shift type (off / day / night / vacation), overtime, and the holiday choice.
-  On mobile the dropdown becomes a bottom sheet
-- **Paint brush** — pick a shift and click or drag across days to paint them in;
-  totals update live while you paint
-- **Schedule templates** — Front Half (Sun–Wed), Back Half (Wed–Sat), Donut (Mon·Tue·Thu·Fri),
-  their 3-day variants and Weekend-only: fill the whole month in one click,
-  as a day or night shift
+- **Calendar view** — the only shift editor: **click a day** to open its settings
+  (shift type, overtime, holiday choice) in a mini dropdown; on mobile it becomes a
+  bottom sheet
+- **Paint brush** — with the brush active, **drag** across days to paint them
+  (a plain click still opens the day editor); totals update live while you paint
 - **Automatic public holidays** — Czech holidays (Easter computed algorithmically) are
   detected from the calendar; a day/night shift falling on a holiday gets the holiday
   supplement automatically — no manual "holiday" day type needed
@@ -29,7 +26,6 @@ Available in **Русский**, **Українська**, **English** and **Če
   column letters in the API match the sheet
 - **Gross → net estimate** (Czech withholdings: 4.5 % health, 7.1 % social, 15 % income tax
   with taxpayer credit)
-- **Quick actions** — fill weekdays with day/night shifts, weekends off, clear the month
 - **Autosave** — everything persists in `localStorage`, per month
 - **Print / PDF** — payslip-style printout with a detailed per-day breakdown
 - **REST API** — calculate payroll for any month from your own tools/scripts

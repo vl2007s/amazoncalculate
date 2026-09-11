@@ -1,15 +1,20 @@
 /**
- * Calendar view: month grid with an inline dropdown shift picker and a paint brush.
+ * Calendar view: month grid with an inline dropdown day editor and a drag-paint brush.
+ *
+ * Interaction model:
+ *   - CLICK a day  -> opens the dropdown editor (type / overtime / holiday choice)
+ *   - DRAG with the brush active -> paints days (the press counts as a drag as soon
+ *     as the pointer enters another cell; a plain click still opens the editor)
  *
  * CalendarView.render(container, ctx) — ctx:
  *   year, month            — the visible month
  *   shifts                 — [{type, overtime, holidayWork}] for the month (mutated via callbacks only)
  *   results                — per-day Payroll.calcDay results (amounts, holiday info)
- *   brush                  — {active, type, overtime}; when active, clicks/drags paint days
+ *   brush                  — {active, type, overtime}
  *   onChange(idx, patch)   — structured edit from the dropdown ({type} | {overtime} | {holidayWork});
  *                            the app patches state, persists and re-renders
  *   onPaint(idx)           — brush stroke over one day; app mutates state ONLY (no re-render)
- *   onPaintEnd()           — brush released; app persists and does a full re-render
+ *   onPaintEnd()           — drag released; app persists and does a full re-render
  *
  * All dynamic text is attached via textContent, so nothing here can inject markup.
  */
@@ -21,7 +26,12 @@
    * calendar wrap (position:relative) so absolute positioning is cell-relative.
    * On small screens CSS turns it into a fixed bottom sheet instead. */
   let popover = null;
-  let painting = false; /* true while a brush drag is in progress */
+
+  /* State of the current brush press. press.dragged flips to true once the
+   * pointer has painted anything — a click without dragging must still open
+   * the day editor, so the click handler checks this flag. */
+  let press = null;
+  let paintEndCallback = null;
 
   function el(tag, cls, text) {
     const e = document.createElement(tag);
@@ -42,10 +52,8 @@
       if (e.key === "Escape") closePopover();
     });
     document.addEventListener("pointerup", function () {
-      if (painting) {
-        painting = false;
-        if (root.CalendarView._paintEnd) root.CalendarView._paintEnd();
-      }
+      if (press && press.dragged && paintEndCallback) paintEndCallback();
+      press = null;
     });
   }
 
@@ -114,7 +122,7 @@
 
     popover.appendChild(el("div", "pop-sep"));
 
-    /* overtime only for real shifts, and irrelevant on a not-worked holiday */
+    /* overtime (přesčas) — only for real shifts, and irrelevant on a not-worked holiday */
     const ot = el("label", "pop-ot" + ((entry.type === "den" || entry.type === "noc") && entry.holidayWork !== false ? "" : " disabled"));
     const cb = document.createElement("input");
     cb.type = "checkbox";
@@ -190,24 +198,30 @@
     if (entry.overtime && !isNahr) cell.appendChild(el("span", "ot-mark", "⚡"));
   }
 
-  function createCell(day, ctx) {
+  function createCell(day, ctx, container) {
     const cell = el("button", "cal-day");
     cell.type = "button";
     cell.setAttribute("role", "gridcell");
     fillCell(cell, day, ctx);
 
+    /* brush press starts here — painting begins only once the pointer moves
+     * into another cell (or back over the grid), so a plain click still edits */
     cell.addEventListener("pointerdown", function (e) {
-      if (ctx.brush.active) {
-        e.preventDefault(); /* keep focus off the button while painting */
-        painting = true;
-        paintDay(cell.closest(".calendar-wrap"), ctx, day);
-      }
+      if (!ctx.brush.active) return;
+      e.preventDefault(); /* keep focus off the button while painting */
+      press = { startDay: day, dragged: false };
     });
     cell.addEventListener("pointerenter", function () {
-      if (painting && ctx.brush.active) paintDay(cell.closest(".calendar-wrap"), ctx, day);
+      if (!press || !ctx.brush.active) return;
+      if (!press.dragged) {
+        press.dragged = true;
+        paintDay(container, ctx, press.startDay); /* the cell where the press began */
+      }
+      if (day !== press.startDay) paintDay(container, ctx, day);
     });
     cell.addEventListener("click", function () {
-      if (ctx.brush.active) return; /* click was already handled as a paint stroke */
+      /* after a real drag the click that follows must not open the editor */
+      if (ctx.brush.active && press && press.dragged) return;
       openDropdown(cell, day, ctx);
     });
     return cell;
@@ -219,6 +233,7 @@
     container.innerHTML = "";
     container.appendChild(popover);
     closePopover();
+    paintEndCallback = ctx.onPaintEnd || null;
 
     const grid = el("div", "cal-grid" + (ctx.brush.active ? " brushing" : ""));
     grid.setAttribute("role", "grid");
@@ -234,7 +249,7 @@
     for (let i = 0; i < offset; i++) grid.appendChild(el("div", "cal-day pad", " "));
 
     for (let day = 0; day < n; day++) {
-      grid.appendChild(createCell(day, ctx));
+      grid.appendChild(createCell(day, ctx, container));
     }
 
     container.appendChild(grid);

@@ -1,8 +1,8 @@
 /* App wiring: state, localStorage persistence, rendering (calendar view, brush,
- * summary, breakdown, settings form), schedule templates, language switching.
+ * summary, breakdown, settings form), language switching.
  *
- * The calendar grid is the only shift editor: brush paints, the per-day dropdown
- * handles the fine details (overtime, holiday worked/stayed-home).
+ * The calendar grid is the only shift editor: click a day for its dropdown
+ * (type / overtime / holiday choice), drag with the brush to paint.
  *
  * State shape:
  *   settings — personal rates and bonus parameters (see Payroll.DEFAULT_SETTINGS);
@@ -74,8 +74,6 @@
   const nameInput = document.getElementById("nameInput");
   const rateBaseInput = document.getElementById("rateBaseInput");
   const ratePhvInput = document.getElementById("ratePhvInput");
-  const tmplPreset = document.getElementById("tmplPreset");
-  const tmplShift = document.getElementById("tmplShift");
   const settingsGrid = document.getElementById("settingsGrid");
   const breakdownTable = document.getElementById("breakdownTable");
   const toast = document.getElementById("toast");
@@ -203,27 +201,6 @@
     hint.textContent = I18n.t("brushHint");
     brushBar.appendChild(hint);
   }
-
-  /* ============ Schedule templates ============ */
-  function buildTemplateSelect() {
-    const current = tmplPreset.value;
-    tmplPreset.innerHTML = "";
-    Payroll.SCHEDULE_PRESETS.forEach(function (p) {
-      const opt = document.createElement("option");
-      opt.value = p.key;
-      opt.textContent = I18n.t("preset_" + p.key);
-      tmplPreset.appendChild(opt);
-    });
-    if (current) tmplPreset.value = current;
-  }
-
-  document.getElementById("btnTmplApply").addEventListener("click", function () {
-    /* templates rewrite the whole month: pattern days get the chosen shift,
-     * all other days become off */
-    state.shifts = Payroll.applySchedule(state.year, state.month, tmplPreset.value, tmplShift.value);
-    persistAll();
-    renderAll();
-  });
 
   /* ============ Summary & breakdown ============ */
   function renderSummary(results) {
@@ -386,7 +363,6 @@
     renderMonthSelect();
     buildSettingsForm();
     buildBrushBar();
-    buildTemplateSelect();
     renderAll();
   });
 
@@ -404,31 +380,6 @@
     renderAll();
   });
   nameInput.addEventListener("change", function () { state.name = nameInput.value; persistAll(); });
-
-  /* Quick actions mutate the whole month at once (delegated, one listener) */
-  document.querySelector(".quick-actions").addEventListener("click", function (e) {
-    const btn = e.target.closest("button[data-action]");
-    if (!btn) return;
-    const action = btn.dataset.action;
-    const n = Payroll.daysInMonth(state.year, state.month);
-    const blank = function () { return { type: "volno", overtime: false, holidayWork: true }; };
-    if (action === "clear" || action === "reset-month") {
-      for (let i = 0; i < n; i++) state.shifts[i] = blank();
-    } else if (action === "weekdays-den" || action === "weekdays-noc") {
-      const t = action === "weekdays-den" ? "den" : "noc";
-      for (let i = 0; i < n; i++) {
-        const d = new Date(state.year, state.month, i + 1);
-        state.shifts[i] = Payroll.isWeekend(d) ? blank() : { type: t, overtime: false, holidayWork: true };
-      }
-    } else if (action === "weekends-off") {
-      for (let i = 0; i < n; i++) {
-        const d = new Date(state.year, state.month, i + 1);
-        if (Payroll.isWeekend(d)) state.shifts[i] = blank();
-      }
-    }
-    persistAll();
-    renderAll();
-  });
 
   document.getElementById("btnResetDefaults").addEventListener("click", function () {
     state.settings = { ...Payroll.DEFAULT_SETTINGS };
@@ -448,6 +399,5 @@
   buildYearSelect();
   buildSettingsForm();
   buildBrushBar();
-  buildTemplateSelect();
   renderAll();
 })();

@@ -109,31 +109,6 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .panel-body{padding:16px 18px;}
 .hint-line{font-size:12.5px; color:var(--text-600); margin-top:2px;}
 
-/* quick actions */
-.quick-actions{display:flex; gap:8px; flex-wrap:wrap;}
-.chip-btn{
-  background:var(--surface-0); border:1px solid var(--line-strong); border-radius:999px;
-  padding:8px 14px; font-size:13px; font-weight:600; color:var(--text-900);
-  transition:background .12s, border-color .12s;
-}
-.chip-btn:hover{background:var(--surface-200);}
-.chip-btn.danger-outline{color:var(--danger-text); border-color:var(--danger-line);}
-.chip-btn.danger-outline:hover{background:var(--danger-bg);}
-
-/* schedule template row */
-.template-row{
-  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-  margin-top:12px; padding-top:12px; border-top:1px solid var(--surface-200);
-}
-.template-title{
-  font-size:12.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
-  color:var(--accent-700);
-}
-.template-select{
-  border:1px solid var(--line-strong); border-radius:var(--radius-sm);
-  padding:8px 10px; font-weight:600; background:var(--surface-0); max-width:100%;
-}
-
 /* ---------- Brush toolbar ---------- */
 .brush-bar{
   display:flex; align-items:center; gap:8px; flex-wrap:wrap;
@@ -329,9 +304,9 @@ footer .sep{margin:0 8px; color:#4A5A68;}
 .toast.show{opacity:1; transform:translateY(0);}
 
 @media print{
-  .topbar select, .topbar input, .quick-actions, .template-row,
+  .topbar select, .topbar input,
   .settings-actions, .toast, .subbar a, .calendar-wrap, .day-popover,
-  .brush-bar, .chip-btn{display:none !important;}
+  .brush-bar{display:none !important;}
   body{background:#fff;}
   .panel{box-shadow:none; border:1px solid #ccc;}
 }
