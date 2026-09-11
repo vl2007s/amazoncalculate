@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HPP Salary Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">💰</div>
+    <div>
+      <h1 data-i18n="appTitle">HPP Salary Calculator</h1>
+      <div class="sub" data-i18n="tagline">Pick a shift for each day — the rest is calculated automatically</div>
+    </div>
+  </div>
+  <div class="period">
+    <select id="langSelect" data-i18n-aria="langAria" aria-label="Language">
+      <option value="ru">Русский</option>
+      <option value="uk">Українська</option>
+      <option value="en">English</option>
+      <option value="cs">Čeština</option>
+    </select>
+    <select id="monthSelect" data-i18n-aria="monthAria" aria-label="Month"></select>
+    <input type="number" id="yearInput" data-i18n-aria="yearAria" aria-label="Year" min="2023" max="2035">
+  </div>
+</div>
+<div class="subbar">
+  <span id="periodLabel" class="tabular"></span>
+  <span style="display:flex; align-items:center; gap:16px;">
+    <span class="save-indicator idle" id="saveIndicator" data-i18n="savedIndicator">✓ Saved in this browser</span>
+    <a href="#settingsPanel" class="settings-link" data-i18n="settingsLink">⚙ Rates &amp; settings</a>
+  </span>
+</div>
+
+<div class="container">
+
+  <div class="name-field">
+    <label for="nameInput" data-i18n="nameLabel">Name (optional):</label>
+    <input type="text" id="nameInput" data-i18n-placeholder="namePlaceholder" placeholder="For printing the payslip">
+  </div>
+
+  <section class="summary">
+    <div class="stat-card primary">
+      <div class="label" data-i18n="grossLabel">Gross salary</div>
+      <div class="value tabular" id="sumGross">0</div>
+      <div class="hint" data-i18n="grossHint">Total for the whole month</div>
+    </div>
+    <div class="stat-card net">
+      <div class="label" data-i18n="netLabel">Net salary (estimate)</div>
+      <div class="value tabular" id="sumNet">0</div>
+      <div class="hint" data-i18n="netHint">Approximate calculation, not an official payslip</div>
+    </div>
+    <div class="stat-card hours">
+      <div class="label" data-i18n="workedLabel">Hours worked</div>
+      <div class="value tabular" id="sumHours">0</div>
+      <div class="hint" id="sumDays">0</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2 data-i18n="quickTitle">Quick shift setup</h2>
+    </div>
+    <div class="panel-body">
+      <div class="quick-actions">
+        <button class="chip-btn" data-action="clear" data-i18n="qaClear">All off</button>
+        <button class="chip-btn" data-action="weekdays-den" data-i18n="qaWeekdaysDay">Weekdays → Day shift</button>
+        <button class="chip-btn" data-action="weekdays-noc" data-i18n="qaWeekdaysNight">Weekdays → Night shift</button>
+        <button class="chip-btn" data-action="weekends-off" data-i18n="qaWeekendsOff">Weekends → Off</button>
+        <button class="chip-btn danger-outline" data-action="reset-month" data-i18n="qaResetMonth">Clear this month</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="shiftsPanel">
+    <div class="panel-head">
+      <h2 data-i18n="shiftsTitle">Shifts in month</h2>
+      <div class="view-toggle" role="tablist" aria-label="View">
+        <button id="btnViewCalendar" class="active" data-i18n="viewCalendar">Calendar</button>
+        <button id="btnViewList" data-i18n="viewList">List</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--off-bg); border:1px solid var(--off-line)"></i><span data-i18n="legendOff">Off</span></span>
+      <span><i style="background:var(--day-bg); border:1px solid var(--day-line)"></i><span data-i18n="legendDay">Day 7:00–17:10</span></span>
+      <span><i style="background:var(--night-bg); border:1px solid var(--night-line)"></i><span data-i18n="legendNight">Night 18:00–04:10</span></span>
+      <span><i style="background:var(--success-bg); border:1px solid var(--success-line)"></i><span data-i18n="legendVacation">Vacation</span></span>
+      <span><i style="background:var(--danger-bg); border:1px solid var(--danger-line)"></i><span data-i18n="legendHoliday">Holiday (work)</span></span>
+      <span data-i18n="legendOvertime">☑ Overtime = +25 % on top of the shift</span>
+    </div>
+    <div class="calendar-wrap" id="calendarWrap"></div>
+    <div class="day-list" id="dayList" hidden></div>
+  </section>
+
+  <details class="panel" id="breakdownPanel">
+    <summary><span data-i18n="breakdownTitle">Detailed breakdown by day</span> <span class="chev">▸</span></summary>
+    <div class="panel-body bt-wrap">
+      <table class="breakdown" id="breakdownTable"></table>
+    </div>
+  </details>
+
+  <details class="panel" id="settingsPanel">
+    <summary><span data-i18n="settingsTitle">Rates &amp; advanced settings</span> <span class="chev">▸</span></summary>
+    <div class="panel-body">
+      <p class="hint-line" style="margin-top:0;" data-i18n="settingsHint">Set once by the company admin — rates apply to everyone.</p>
+      <div class="settings-grid" id="settingsGrid"></div>
+      <p class="hint-line" data-i18n="settingsNote">Note: vacation and holiday hours are counted using paid night-shift hours.</p>
+      <div class="settings-actions">
+        <button class="btn ghost" id="btnResetDefaults" data-i18n="resetDefaults">Restore company default rates</button>
+        <button class="btn primary" id="btnPrint" data-i18n="printBtn">🖨 Print / save as PDF</button>
+      </div>
+    </div>
+  </details>
+
+</div>
+
+<footer>
+  MIT License <span class="sep">·</span> <span data-i18n="footerBy">Code by</span> Vladyslav Simonov <span class="sep">·</span>
+  <a href="https://t.me/vl2007s" target="_blank" rel="noopener">t.me/vl2007s</a>
+</footer>
+
+<div class="toast" id="toast" data-i18n="toastSaved">✓ Saved</div>
+<div class="day-popover" id="dayPopover" role="dialog" aria-modal="false"></div>
+
+<script src="js/locales.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/payroll.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
