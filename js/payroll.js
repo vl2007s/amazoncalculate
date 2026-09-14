@@ -75,9 +75,9 @@
    * shifts saved by the old version still calculate the same; the UI no longer
    * offers it — holidays are detected from the calendar automatically.
    */
-  const SHIFT_TYPES = ["volno", "den", "noc", "dovolena", "svatek", "pulden", "nemoc"];
+  const SHIFT_TYPES = ["volno", "den", "noc", "dovolena", "svatek", "pulden", "nemoc", "prek"];
   /** Types shown in pickers (svatek handled automatically). */
-  const WORK_TYPES = ["volno", "den", "noc", "pulden", "dovolena", "nemoc"];
+  const WORK_TYPES = ["volno", "den", "noc", "pulden", "dovolena", "nemoc", "prek"];
 
   /* ---------- date helpers ---------- */
 
@@ -197,7 +197,7 @@
 
     const isDen = type === "den", isNoc = type === "noc", isDov = type === "dovolena",
       isSva = type === "svatek", isVolno = type === "volno",
-      isPul = type === "pulden", isNem = type === "nemoc";
+      isPul = type === "pulden", isNem = type === "nemoc", isPrek = type === "prek";
     const nextDate = addDays(date, 1);
     const dk = dateKey(date), ndk = dateKey(nextDate);
     const onHoliday = holidayMap.has(dk), nextOnHoliday = holidayMap.has(ndk);
@@ -216,6 +216,21 @@
       return {
         F: F, G: 0, H: 0, I: "-", J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0,
         nem: NEM, exempt: 0, isWeekend: isWeekend(date), holidayName: null,
+        isHolidayShift: false, holidayWork: true
+      };
+    }
+
+    /* Doctor visit with a propustka (překážky v práci dle § 209 ZP): Adecco
+     * books the missed shift as half PAID at the full PHV (inside the gross —
+     * taxed and insured, like vacation náhrada) and half UNPAID. Payslip
+     * 08/2026 (Simonov): Překážky dle ZP 4,83 h -> 1 188 Kč inside hrubá mzda,
+     * Neodpracované hodiny 6,22 -> 0 Kč (= the unpaid half 4,83 + lateness). */
+    if (isPrek) {
+      const half = s.dayPaidHours / 2;
+      const O = round4(half * s.phvRate);
+      return {
+        F: 0, G: 0, H: 0, I: "-", J: 0, K: 0, L: 0, M: 0, N: 0, O: O, P: 0, E: O,
+        nem: 0, exempt: 0, isWeekend: isWeekend(date), holidayName: null,
         isHolidayShift: false, holidayWork: true
       };
     }
@@ -358,19 +373,28 @@
    *  pattern); 0/null -> fall back to the painted scheduled days */
   function attendanceInfo(results, shifts, s, fondDays) {
     const shiftH = s.dayPaidHours;
-    let counted = 0, paintedFond = 0;
+    let counted = 0, paintedFond = 0, deduct = 0;
     results.forEach(function (r, i) {
-      const t = shifts[i] ? shifts[i].type : "volno";
+      const sh = shifts[i] || {};
+      const t = sh.type || "volno";
       if (t === "den" || t === "noc") counted += r.F; /* net of lateness */
       else if (t === "pulden") counted += r.F + shiftH / 2; /* worked half + vacation half */
       else if (t === "dovolena" || t === "svatek") counted += shiftH;
+      else if (t === "prek") { counted += shiftH / 2; deduct += shiftH / 2; } /* paid half counts, unpaid half leaves the fond */
       /* nemoc: fond keeps the hours, the share gets nothing */
+      /* lateness and the unpaid doctor half are subtracted from the PLANNED
+       * fond (slide + payslip 08/2026: fond 174 − 6,22, counted 162,95 + 4,83
+       * = 167,78/167,78 = 100 % -> 10 % odměna) */
+      if (t === "den" || t === "noc" || t === "pulden") {
+        deduct += Math.max(0, Math.min(+sh.lateHours || 0, shiftH));
+      }
       if (t !== "volno") paintedFond += shiftH;
     });
-    const fond = fondDays > 0 ? fondDays * shiftH : paintedFond;
+    const fond = Math.max(0, (fondDays > 0 ? fondDays * shiftH : paintedFond) - deduct);
     const share = fond > 0 ? counted / fond : 1;
     return { fond: fond, counted: counted, share: share, pct: bonusTier(share) };
   }
+
 
   /** Applies the tier model: rescales the flat per-day formula P to the tier
    *  percent. The fixed monthly amount (bonusMonthKc > 0) overrides tiers. */

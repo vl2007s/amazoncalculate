@@ -509,7 +509,7 @@
    * deductions, net. Rendered on every re-render so printing is always current. */
   function renderPayslip(results) {
     const s = state.settings;
-    const agg = { casova: 0, casovaH: 0, nahrSvat: 0, K: 0, G: 0, L: 0, H: 0, M: 0, N: 0, dov: 0, nem: 0, P: 0, E: 0, wDays: 0 };
+    const agg = { casova: 0, casovaH: 0, nahrSvat: 0, K: 0, G: 0, L: 0, H: 0, M: 0, N: 0, dov: 0, nem: 0, P: 0, E: 0, wDays: 0, prek: 0, prekH: 0, neodp: 0 };
     results.forEach(function (r, i) {
       const t = state.shifts[i] ? state.shifts[i].type : "volno";
       agg.wDays += (t === "den" || t === "noc") ? 1 : (t === "pulden" ? 0.5 : 0);
@@ -517,7 +517,11 @@
       else { agg.casova += r.J; agg.casovaH += s.baseRate ? r.J / s.baseRate : 0; }
       agg.K += r.K; agg.G += r.G; agg.L += r.L; agg.H += r.H; agg.M += r.M; agg.N += r.N;
       agg.nem += r.nem || 0; /* DPN náhrada — outside gross, paid net (08/2026) */
-      agg.dov += r.O;
+      agg.dov += (t === "prek") ? 0 : r.O;
+      if (t === "prek") { /* doctor/propustka: half paid from PHV (in gross), half unpaid */
+        agg.prek += r.O; agg.prekH += s.dayPaidHours / 2; agg.neodp += s.dayPaidHours / 2;
+      }
+      if (t === "den" || t === "noc" || t === "pulden") agg.neodp += Math.min(+state.shifts[i].lateHours || 0, s.dayPaidHours);
       agg.P += r.P; agg.E += r.E;
     });
 
@@ -538,7 +542,7 @@
       let html = '<thead><tr><th colspan="2">' + I18n.esc(title) + '</th><th class="ps-r">' +
         I18n.esc(I18n.t("hoursUnit")) + '</th><th class="ps-r">Kč</th></tr></thead><tbody>';
       lines.forEach(function (ln) {
-        if (!ln || !(Math.abs(ln.val) > 0.004)) return;
+        if (!ln || (Math.abs(ln.val) <= 0.004 && !ln.h)) return;
         html += '<tr><td colspan="2">' + I18n.esc(ln.label) + '</td><td class="ps-r">' +
           (ln.h ? I18n.fmtNum(ln.h) : "") + '</td><td class="ps-r">' + I18n.fmtNum(ln.val) + '</td></tr>';
       });
@@ -559,6 +563,8 @@
       agg.M ? { label: I18n.t("psOvertime"), val: agg.M } : null,
       agg.N ? { label: I18n.t("psHolidaySup"), val: agg.N } : null,
       agg.dov ? { label: I18n.t("psVacation"), val: agg.dov } : null,
+      agg.prek ? { label: I18n.t("psPrek"), h: agg.prekH, val: agg.prek } : null,
+      agg.neodp ? { label: I18n.t("psUnpaid"), h: agg.neodp, val: 0 } : null,
       agg.nem ? { label: I18n.t("psSick"), val: agg.nem } : null,
       agg.P ? { label: I18n.t("psBonus"), val: agg.P } : null
     ], "psGross", agg.E);

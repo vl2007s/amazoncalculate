@@ -270,5 +270,41 @@ ok(patMix && patMix.weekdays.indexOf(5) === -1 && patMix.weekdays.length === 4,
   ok(resF.every(function (r) { return r.P === 0; }), "bonusVoid beats fixed override");
 }
 
+
+/* 17. Vladyslav's own payslip 08/2026 — doctor day (překážky) + lateness:
+ * časová 35 523, víkend 644, noční 1 673, odměna 3 523 (= 10 % — the full
+ * bonus!), Překážky 4,83 h -> 1 188 inside gross, Neodpracované 6,22 -> 0,
+ * hrubá 42 551, čistá 33 794. Fond 174 (Sun–Wed x 9,6667), PHV 246,06. */
+{
+  const SV = Object.assign({}, S, { baseRate: 218, phvRate: 246.06 });
+  const dimV = Payroll.daysInMonth(2026, 7);
+  const shV = []; for (let i = 0; i < dimV; i++) shV.push({ type: "volno", overtime: false, holidayWork: true, lateHours: 0 });
+  [2, 3, 4, 5, 9, 10, 11, 12, 16, 17, 18, 19].forEach(function (d) { shV[d - 1].type = "noc"; });
+  [23, 24, 25, 30, 31].forEach(function (d) { shV[d - 1].type = "den"; });
+  shV[25].type = "prek";          /* 26.8 — doctor with propustka */
+  shV[16].lateHours = 1.39;       /* lateness -> 6,22 h unpaid total with the doctor half */
+  const rawV = shV.map(function (s2, i) { return Payroll.calcDay(new Date(2026, 7, i + 1), s2.type, s2, SV, hol); });
+
+  const prek = rawV[25];
+  ok(prek.F === 0 && prek.J === 0, "prek: not worked hours, no time wage");
+  ok(Math.abs(prek.O - 246.06 * SV.dayPaidHours / 2) < 0.01 && Math.abs(prek.E - prek.O) < 0.01,
+    "prek: half shift at full PHV inside gross — got " + prek.O);
+
+  const ai = Payroll.attendanceInfo(rawV, shV, SV, 18);
+  ok(Math.abs(ai.fond - 167.78) < 0.1 && Math.abs(ai.counted - 167.78) < 0.1,
+    "attendance: fond 174-6,22 = counted 162,95+4,83 — got " + ai.counted.toFixed(2) + "/" + ai.fond.toFixed(2));
+  ok(ai.pct === 0.10, "share 100 % -> full 10 % odměna (payslip) — got " + ai.pct);
+
+  const resV = Payroll.withAttendanceBonus(rawV, shV, SV, 18);
+  const gross = resV.reduce(function (a, r) { return a + r.E; }, 0);
+  const bonus = resV.reduce(function (a, r) { return a + r.P; }, 0);
+  /* NB: payslip víkend = 26,17 h while the painted roster has 35,83 weekend h —
+   * the difference is exactly ONE Sunday day shift (9,67 h ≈ 238 Kč), i.e. one
+   * of 23./30.8 was in reality a weekday shift. Model follows the painted data. */
+  ok(Math.abs(gross - 42551) < 260, "gross ~ 42 551 (minus the Sunday-shift anomaly) — got " + Math.round(gross));
+  ok(Math.abs(bonus - 3523) < 40, "odměna ~ 3 523 — got " + Math.round(bonus));
+  ok(Math.abs(Payroll.calcNetto(gross) - 33794) < 260, "netto ~ 33 794 — got " + Math.round(Payroll.calcNetto(gross)));
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

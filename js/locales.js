@@ -116,6 +116,11 @@
       f_bonusVoid: "Warning letter / ADAPT this month",
       attVoidHint: "→ bonus 0",
       attVoid: "voided (warning/ADAPT)",
+      type_prek: "Doctor (obstacle)",
+      ts_prek: "Doc.",
+      legendPrek: "Doctor — ½ shift from PHV, ½ unpaid (propustka)",
+      psPrek: "Obstacles per LC (doctor)",
+      psUnpaid: "Unworked hours (unpaid)",
 
       /* Print payslip sheet (výplatní páska) */
       psTitle: "Výplatní páska — payslip",
@@ -294,6 +299,11 @@
       f_bonusVoid: "Выговор / ADAPT в этом месяце",
       attVoidHint: "→ bonus 0",
       attVoid: "отменён (выговор/ADAPT)",
+      type_prek: "Врач (препятствие)",
+      ts_prek: "Врач",
+      legendPrek: "Врач — ½ смены по PHV, ½ неоплачено (пропуска)",
+      psPrek: "Překážky dle ZP (врач)",
+      psUnpaid: "Неотработанные часы (неоплач.)",
 
       /* Печатный расчётный листок (výplatní páska) */
       psTitle: "Výplatní páska — расчётный листок",
@@ -472,6 +482,11 @@
       f_bonusVoid: "Догана / ADAPT цього місяця",
       attVoidHint: "→ bonus 0",
       attVoid: "скасовано (догана/ADAPT)",
+      type_prek: "Лікар (перешкода)",
+      ts_prek: "Лікар",
+      legendPrek: "Лікар — ½ зміни за PHV, ½ неоплачено (пропуска)",
+      psPrek: "Překážky dle ZP (лікар)",
+      psUnpaid: "Невідпрацьовані години (неоплач.)",
 
       /* Друкований розрахунковий листок (výplatní páska) */
       psTitle: "Výplatní páska — розрахунковий листок",
@@ -650,6 +665,11 @@
       f_bonusVoid: "Výtka / ADAPT tento měsíc",
       attVoidHint: "→ bonus 0",
       attVoid: "zrušen (výtka/ADAPT)",
+      type_prek: "Překážky dle ZP",
+      ts_prek: "Lékař",
+      legendPrek: "Lékař — ½ směny z PHV, ½ neplaceno (propustka)",
+      psPrek: "Překážky dle ZP",
+      psUnpaid: "Neodpracované hodiny",
 
       /* Tištěná výplatní páska */
       psTitle: "Výplatní páska",
@@ -828,6 +848,11 @@
       f_bonusVoid: "Nagana / ADAPT w tym miesiącu",
       attVoidHint: "→ bonus 0",
       attVoid: "anulowana (nagana/ADAPT)",
+      type_prek: "Lekarz (przeszkoda)",
+      ts_prek: "Lekarz",
+      legendPrek: "Lekarz — ½ zmiany z PHV, ½ niepłatne (przepustka)",
+      psPrek: "Překážky dle ZP (lekarz)",
+      psUnpaid: "Nieprzepracowane godziny (bezpł.)",
 
       /* Drukowany pasek wynagrodzenia (výplatní páska) */
       psTitle: "Výplatní páska — pasek wynagrodzenia",
