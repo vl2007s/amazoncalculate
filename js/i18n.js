@@ -39,13 +39,13 @@
   function getLang() { return lang; }
   function locales() { return LOCALES; }
 
-  /* Slavic-style 3-form plurals (ru/uk/cs) + default one/other.
+  /* Slavic-style 3-form plurals (ru/uk/pl/cs) + default one/other.
    * forms = [singular, paucal(2-4), genitive plural(5+)] for Slavic locales. */
   function plural(n, forms) {
     n = Math.abs(n);
     const m100 = n % 100, m10 = n % 10;
     let idx;
-    if (lang === "ru" || lang === "uk") {
+    if (lang === "ru" || lang === "uk" || lang === "pl") {
       idx = (m100 > 10 && m100 < 20) ? 2 : (m10 > 1 && m10 < 5 ? 1 : (m10 === 1 ? 0 : 2));
     } else if (lang === "cs") {
       idx = (m10 === 1 && m100 !== 11) ? 0 : (m10 >= 2 && m10 <= 4 && !(m100 >= 12 && m100 <= 14) ? 1 : 2);

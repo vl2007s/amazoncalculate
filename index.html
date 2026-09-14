@@ -31,6 +31,7 @@
       <option value="uk">Українська</option>
       <option value="en">English</option>
       <option value="cs">Čeština</option>
+      <option value="pl">Polski</option>
     </select>
     <select id="monthSelect" data-i18n-aria="monthAria" aria-label="Month"></select>
     <select id="yearSelect" data-i18n-aria="yearAria" aria-label="Year"></select>
@@ -61,8 +62,13 @@
       </label>
       <label class="rates-field">
         <span data-i18n="f_phvRate">Average PHV rate (vacation/holiday)</span>
-        <input type="number" id="ratePhvInput" min="0" step="0.01" value="246.07">
+        <input type="number" id="ratePhvInput" min="0" step="0.01" value="246.06">
         <span class="unit" data-i18n="u_kch">CZK/h</span>
+      </label>
+      <label class="rates-field">
+        <span data-i18n="f_bonusMonthKc">Pracovní odměna (fixed, per month)</span>
+        <input type="number" id="rateBonusInput" min="0" step="1" value="0">
+        <span class="unit" data-i18n="u_kc">Kč</span>
       </label>
       <span class="rates-hint" data-i18n="myRatesHint">Personal hourly rates — used for your calculation only</span>
     </div>
@@ -96,6 +102,8 @@
       <span><i style="background:var(--day-bg); border:1px solid var(--day-line)"></i><span data-i18n="legendDay">Day 7:00–17:10</span></span>
       <span><i style="background:var(--night-bg); border:1px solid var(--night-line)"></i><span data-i18n="legendNight">Night 18:00–04:10</span></span>
       <span><i style="background:var(--success-bg); border:1px solid var(--success-line)"></i><span data-i18n="legendVacation">Vacation</span></span>
+      <span><i style="background:var(--half-bg); border:1px solid var(--half-line)"></i><span data-i18n="legendHalf">Half-day — ½ shift + ½ paid vacation</span></span>
+      <span><i style="background:var(--sick-bg); border:1px solid var(--sick-line)"></i><span data-i18n="legendSick">Sick — 60 % from employer (first 14 days)</span></span>
       <span><i style="background:var(--danger-bg); border:1px solid var(--danger-line)"></i><span data-i18n="legendHoliday">Public holiday — auto bonus</span></span>
       <span><i class="lg-nahr" style="border:2px dashed var(--danger-text)"></i><span data-i18n="legendNahr">Holiday not worked (paid)</span></span>
       <span data-i18n="legendOvertime">☑ Overtime = +25 % on top of the shift</span>

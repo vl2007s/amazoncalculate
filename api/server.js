@@ -181,19 +181,27 @@ function handleCalculate(req, res) {
       const s = body.shifts[i];
       const type = s && Payroll.SHIFT_TYPES.indexOf(s.type) !== -1 ? s.type : "volno";
       const isWorkShift = type === "den" || type === "noc";
+      /* the holiday worked/stayed-home choice also applies to a poludnevka */
+      const canHoliday = isWorkShift || type === "pulden";
       shifts.push({
         type: type,
         overtime: isWorkShift && !!(s && s.overtime),
-        holidayWork: isWorkShift && !(s && s.holidayWork === false)
+        holidayWork: canHoliday ? !(s && s.holidayWork === false) : false
       });
     }
 
     const lang = validLang(body.lang) || "en";
     const holidayMap = Payroll.buildHolidayMap(year, lang, LOCALES);
 
-    const days = shifts.map(function (shift, i) {
+    const results = shifts.map(function (shift, i) {
+      return Payroll.calcDay(new Date(year, month - 1, i + 1), shift.type, shift, settings, holidayMap);
+    });
+    /* fixed monthly bonus (Pracovní odměna) layered over the raw per-day math */
+    const final = Payroll.withMonthlyBonus(results, settings.bonusMonthKc);
+
+    const days = final.map(function (r, i) {
+      const shift = shifts[i];
       const date = new Date(year, month - 1, i + 1);
-      const r = Payroll.calcDay(date, shift.type, shift, settings, holidayMap);
       return {
         day: i + 1,
         date: Payroll.dateKey(date),
@@ -204,12 +212,14 @@ function handleCalculate(req, res) {
         holiday: r.holidayName,
         /* column letters match the original workbook sheet "Vypocet" */
         F: r.F, G: r.G, H: r.H, I: r.I, J: r.J, K: r.K, L: r.L,
-        M: r.M, N: r.N, O: r.O, P: r.P, E: Math.round(r.E * 100) / 100
+        M: r.M, N: r.N, O: r.O, P: r.P, E: Math.round(r.E * 100) / 100,
+        exempt: Math.round((r.exempt || 0) * 100) / 100
       };
     });
 
     const totals = Payroll.calcTotals(days);
-    const netEstimate = Payroll.calcNetto(totals.E);
+    /* sick-pay compensation is taxed but not insured */
+    const netEstimate = Payroll.calcNetto(totals.E, totals.E - totals.exempt);
 
     sendJson(res, 200, {
       year: year,

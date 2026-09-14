@@ -74,6 +74,7 @@
   const nameInput = document.getElementById("nameInput");
   const rateBaseInput = document.getElementById("rateBaseInput");
   const ratePhvInput = document.getElementById("ratePhvInput");
+  const rateBonusInput = document.getElementById("rateBonusInput");
   const settingsGrid = document.getElementById("settingsGrid");
   const breakdownTable = document.getElementById("breakdownTable");
   const toast = document.getElementById("toast");
@@ -153,6 +154,7 @@
   }
   bindRateInput(rateBaseInput, "baseRate");
   bindRateInput(ratePhvInput, "phvRate");
+  bindRateInput(rateBonusInput, "bonusMonthKc");
 
   /* ============ Settings form ============ */
   /* Built from Payroll.SETTINGS_FIELDS so the form always matches the math. */
@@ -242,11 +244,16 @@
   function renderSummary(results) {
     const gross = results.reduce(function (a, r) { return a + r.E; }, 0);
     const hours = results.reduce(function (a, r) { return a + r.F; }, 0);
-    const workedDays = state.shifts.filter(function (d) { return d.type !== "volno"; }).length;
+    /* sick-pay compensation is taxed but not insured — netto needs the split */
+    const exempt = results.reduce(function (a, r) { return a + (r.exempt || 0); }, 0);
+    /* worked days: full shifts count 1, a poludnevka counts 0.5 (16,5 dne style) */
+    const workedDays = state.shifts.reduce(function (a, d) {
+      return a + (d.type === "den" || d.type === "noc" ? 1 : (d.type === "pulden" ? 0.5 : 0));
+    }, 0);
     document.getElementById("sumGross").textContent = I18n.fmtMoney(gross);
-    document.getElementById("sumNet").textContent = I18n.fmtMoney(Payroll.calcNetto(gross));
+    document.getElementById("sumNet").textContent = I18n.fmtMoney(Payroll.calcNetto(gross, gross - exempt));
     document.getElementById("sumHours").textContent = I18n.fmtHours(hours);
-    document.getElementById("sumDays").textContent = workedDays + " " + I18n.plural(workedDays, I18n.t("daysForms"));
+    document.getElementById("sumDays").textContent = I18n.fmtNum(workedDays) + " " + I18n.plural(workedDays, I18n.t("daysForms"));
   }
 
   /* The breakdown is the one place where building an HTML string is far more
@@ -336,15 +343,18 @@
     /* keep the quick rate fields in sync (also after changes from the settings panel) */
     if (document.activeElement !== rateBaseInput) rateBaseInput.value = state.settings.baseRate;
     if (document.activeElement !== ratePhvInput) ratePhvInput.value = state.settings.phvRate;
+    if (document.activeElement !== rateBonusInput) rateBonusInput.value = state.settings.bonusMonthKc;
 
     const holidayMap = holidayMapFor(state.year);
 
     const n = Payroll.daysInMonth(state.year, state.month);
-    const results = [];
+    const resultsRaw = [];
     for (let i = 0; i < n; i++) {
       const entry = state.shifts[i] || { type: "volno", overtime: false, holidayWork: true };
-      results.push(Payroll.calcDay(new Date(state.year, state.month, i + 1), entry.type, entry, state.settings, holidayMap));
+      resultsRaw.push(Payroll.calcDay(new Date(state.year, state.month, i + 1), entry.type, entry, state.settings, holidayMap));
     }
+    /* fixed monthly bonus (Pracovní odměna) is layered on top of the raw per-day math */
+    const results = Payroll.withMonthlyBonus(resultsRaw, state.settings.bonusMonthKc);
 
     window.CalendarView.render(calendarWrap, {
       year: state.year, month: state.month,
@@ -361,7 +371,8 @@
         if (patch.overtime !== undefined && (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc")) {
           state.shifts[idx].overtime = patch.overtime;
         }
-        if (patch.holidayWork !== undefined && (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc")) {
+        if (patch.holidayWork !== undefined &&
+          (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc" || state.shifts[idx].type === "pulden")) {
           state.shifts[idx].holidayWork = !!patch.holidayWork;
         }
         persistAll();
@@ -376,11 +387,13 @@
           /* keep the user's holiday preference for the day when repainting */
           holidayWork: prev.holidayWork !== false
         };
-        /* update the shared result for this day so the totals stay live while painting */
-        results[idx] = Payroll.calcDay(new Date(state.year, state.month, idx + 1), b.type, state.shifts[idx], state.settings, holidayMap);
-        window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: results, brush: b }, idx);
-        renderSummary(results);
-        renderBreakdown(results);
+        /* update the shared result for this day so the totals stay live while painting;
+         * re-derive the bonus layer from raw results (never double-apply) */
+        resultsRaw[idx] = Payroll.calcDay(new Date(state.year, state.month, idx + 1), b.type, state.shifts[idx], state.settings, holidayMap);
+        const painted = Payroll.withMonthlyBonus(resultsRaw, state.settings.bonusMonthKc);
+        window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: painted, brush: b }, idx);
+        renderSummary(painted);
+        renderBreakdown(painted);
       },
       onPaintEnd: function () {
         persistAll();

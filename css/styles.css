@@ -13,6 +13,8 @@
   --night-bg:#E8EAF6; --night-text:#2E3A80; --night-line:#C4CAEF;
   --day-bg:#FFF4E0; --day-text:#8A5300; --day-line:#F3D9A5;
   --off-bg:#EDEFEF; --off-text:#6B6E6E; --off-line:#D5D9D9;
+  --half-bg:#E0F2F1; --half-text:#00695C; --half-line:#B2DFDB;
+  --sick-bg:#FCE4EC; --sick-text:#AD1457; --sick-line:#F8BBD0;
   --radius-sm:6px; --radius-md:8px; --radius-lg:12px;
   --shadow-card: 0 1px 2px rgba(15,17,17,.1), 0 1px 0 rgba(15,17,17,.04);
   --shadow-pop: 0 8px 24px rgba(15,17,17,.18);
@@ -36,6 +38,8 @@ html[data-theme="dark"]{
   --night-bg:rgba(99,102,241,.15); --night-text:#A5B4FC; --night-line:rgba(165,180,252,.28);
   --day-bg:rgba(255,153,0,.11); --day-text:#FFC46B; --day-line:rgba(255,196,107,.28);
   --off-bg:rgba(255,255,255,.05); --off-text:#9AA5B1; --off-line:rgba(255,255,255,.12);
+  --half-bg:rgba(0,150,136,.16); --half-text:#80CBC4; --half-line:rgba(128,203,196,.30);
+  --sick-bg:rgba(216,27,96,.14); --sick-text:#F48FB1; --sick-line:rgba(244,143,177,.30);
 }
 /* ink-900 turns near-black in dark — the totals divider must flip to the (now light) text color */
 html[data-theme="dark"] table.breakdown tr.total-row td{border-top-color:var(--text-900);}
@@ -155,6 +159,8 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .brush-chip.t-den{background:var(--day-bg); color:var(--day-text); border-color:var(--day-line);}
 .brush-chip.t-noc{background:var(--night-bg); color:var(--night-text); border-color:var(--night-line);}
 .brush-chip.t-dovolena{background:var(--success-bg); color:var(--success-text); border-color:var(--success-line);}
+.brush-chip.t-pulden{background:var(--half-bg); color:var(--half-text); border-color:var(--half-line);}
+.brush-chip.t-nemoc{background:var(--sick-bg); color:var(--sick-text); border-color:var(--sick-line);}
 .brush-chip:hover{filter:brightness(.97);}
 .brush-chip.sel{outline:2px solid var(--ink-900); outline-offset:1px;}
 .brush-ot{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--text-900);}
@@ -201,6 +207,10 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .cal-day.t-dovolena .chip{background:var(--surface-0); color:var(--success-text); border:1px solid var(--success-line);}
 .cal-day.t-svatek{background:var(--danger-bg); border-color:var(--danger-line);}
 .cal-day.t-svatek .chip{background:var(--surface-0); color:var(--danger-text); border:1px solid var(--danger-line);}
+.cal-day.t-pulden{background:var(--half-bg); border-color:var(--half-line);}
+.cal-day.t-pulden .chip{background:var(--surface-0); color:var(--half-text); border:1px solid var(--half-line);}
+.cal-day.t-nemoc{background:var(--sick-bg); border-color:var(--sick-line);}
+.cal-day.t-nemoc .chip{background:var(--surface-0); color:var(--sick-text); border:1px solid var(--sick-line);}
 /* náhrada mzdy — holiday fell on the shift but the day was not worked */
 .cal-day.nahrada{border-style:dashed; border-width:2px;}
 .cal-day.nahrada .chip{background:var(--surface-0); color:var(--danger-text); border:1px dashed var(--danger-line);}
@@ -248,6 +258,8 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .pop-opt .dot.t-den{background:var(--day-bg); border-color:var(--day-line);}
 .pop-opt .dot.t-noc{background:var(--night-bg); border-color:var(--night-line);}
 .pop-opt .dot.t-dovolena{background:var(--success-bg); border-color:var(--success-line);}
+.pop-opt .dot.t-pulden{background:var(--half-bg); border-color:var(--half-line);}
+.pop-opt .dot.t-nemoc{background:var(--sick-bg); border-color:var(--sick-line);}
 .pop-opt .opt-label{flex:1;}
 .pop-opt .check{color:var(--accent-600); font-weight:800;}
 .pop-sep{height:1px; background:var(--surface-200); margin:7px 2px;}

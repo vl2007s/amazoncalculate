@@ -1,0 +1,1158 @@
+From 1af61e6188b1dd46b0ae3e3550879ee627938ea9 Mon Sep 17 00:00:00 2001
+From: Kimi <kimi@dev>
+Date: Mon, 14 Sep 2026 21:26:09 +0800
+Subject: [PATCH 1/4] Add Polish (pl) locale: full dictionary, plural rules,
+ lang option
+
+---
+ index.html    |   1 +
+ js/i18n.js    |   4 +-
+ js/locales.js | 131 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 134 insertions(+), 2 deletions(-)
+
+diff --git a/index.html b/index.html
+index 00c0f70..0570f27 100644
+--- a/index.html
++++ b/index.html
+@@ -31,6 +31,7 @@
+       <option value="uk">Українська</option>
+       <option value="en">English</option>
+       <option value="cs">Čeština</option>
++      <option value="pl">Polski</option>
+     </select>
+     <select id="monthSelect" data-i18n-aria="monthAria" aria-label="Month"></select>
+     <select id="yearSelect" data-i18n-aria="yearAria" aria-label="Year"></select>
+diff --git a/js/i18n.js b/js/i18n.js
+index 0f6c5f4..cfad0f0 100644
+--- a/js/i18n.js
++++ b/js/i18n.js
+@@ -39,13 +39,13 @@
+   function getLang() { return lang; }
+   function locales() { return LOCALES; }
+ 
+-  /* Slavic-style 3-form plurals (ru/uk/cs) + default one/other.
++  /* Slavic-style 3-form plurals (ru/uk/pl/cs) + default one/other.
+    * forms = [singular, paucal(2-4), genitive plural(5+)] for Slavic locales. */
+   function plural(n, forms) {
+     n = Math.abs(n);
+     const m100 = n % 100, m10 = n % 10;
+     let idx;
+-    if (lang === "ru" || lang === "uk") {
++    if (lang === "ru" || lang === "uk" || lang === "pl") {
+       idx = (m100 > 10 && m100 < 20) ? 2 : (m10 > 1 && m10 < 5 ? 1 : (m10 === 1 ? 0 : 2));
+     } else if (lang === "cs") {
+       idx = (m10 === 1 && m100 !== 11) ? 0 : (m10 >= 2 && m10 <= 4 && !(m100 >= 12 && m100 <= 14) ? 1 : 2);
+diff --git a/js/locales.js b/js/locales.js
+index b9d0d02..5f9de44 100644
+--- a/js/locales.js
++++ b/js/locales.js
+@@ -542,6 +542,137 @@
+         dec25: "1. svátek vánoční",
+         dec26: "2. svátek vánoční"
+       }
++    },
++
++    pl: {
++      _name: "Polski",
++      appTitle: "Kalkulator wynagrodzenia HPP",
++      tagline: "Wybierz zmianę dla każdego dnia — reszta policzy się sama",
++      langAria: "Język",
++      themeAria: "Przełącz tryb ciemny",
++      monthAria: "Miesiąc",
++      yearAria: "Rok",
++      savedIndicator: "✓ Zapisano w tej przeglądarce",
++      settingsLink: "⚙ Stawki i ustawienia",
++      nameLabel: "Imię (opcjonalnie):",
++      namePlaceholder: "Do wydruku paska wynagrodzenia",
++      myRates: "Moje stawki",
++      myRatesHint: "Osobiste stawki godzinowe — liczone tylko dla Ciebie",
++      grossLabel: "Wynagrodzenie brutto",
++      grossHint: "Suma za cały miesiąc",
++      netLabel: "Wynagrodzenie netto (szacunek)",
++      netHint: "Orientacyjne wyliczenie, nie oficjalna wypłata",
++      workedLabel: "Przepracowano",
++      daysForms: ["dzień", "dni", "dni"],
++      quickTitle: "Szybkie ustawianie zmian",
++      qaClear: "Wszystko wolne",
++      qaWeekdaysDay: "Dni robocze → Zmiana dzienna",
++      qaWeekdaysNight: "Dni robocze → Zmiana nocna",
++      qaWeekendsOff: "Weekendy → Wolne",
++      qaResetMonth: "Wyczyść ten miesiąc",
++      tmplTitle: "Grafik pracy",
++      tmplApply: "Wypełnij miesiąc",
++      preset_front_half: "Front Half (niedz–śr)",
++      preset_back_half: "Back Half (śr–sob)",
++      preset_donut: "Donut (pon·wt·czw·pt)",
++      preset_back_half_3: "Back Half 3 dni (niedz–wt)",
++      preset_donut_3: "Donut 3 dni (śr–pt)",
++      preset_weekend: "Weekend (sob–niedz)",
++      brushBtn: "🖌 Pędzel",
++      brushHint: "Przeciągnij po dniach, aby je pomalować — kliknięcie dnia otwiera jego ustawienia",
++      shiftsTitle: "Zmiany w miesiącu",
++      viewCalendar: "Kalendarz",
++      viewList: "Lista",
++      legendOff: "Wolne",
++      legendDay: "Dzień 7:00–17:10",
++      legendNight: "Noc 18:00–04:10",
++      legendVacation: "Urlop",
++      legendHoliday: "Święto państwowe — automatyczny dodatek",
++      legendNahr: "Święto nieprzepracowane (płatne)",
++      legendOvertime: "☑ Nadgodziny = +25 % do zmiany",
++      overtime: "Nadgodziny (+25 %)",
++      holTitle: "Święto państwowe",
++      holWork: "Pracować — wynagrodzenie + dodatek za święto",
++      holOff: "Zostać w domu — tylko ekwiwalent za święto",
++      type_volno: "Wolne",
++      type_den: "Zmiana dzienna",
++      type_noc: "Zmiana nocna",
++      type_dovolena: "Urlop",
++      type_svatek: "Święto (przestarz.)",
++      ts_volno: "Wolne",
++      ts_den: "Dzień",
++      ts_noc: "Noc",
++      ts_dovolena: "Url.",
++      ts_svatek: "Święto",
++      ts_nahr: "Płatne",
++      breakdownTitle: "Szczegółowy rozpis według dni",
++      colNum: "#",
++      colDate: "Data",
++      colType: "Typ dnia",
++      colHours: "Godziny",
++      colNightH: "Godz. nocne",
++      colWeekendH: "Godz. weekend",
++      colHolidayQ: "Święto?",
++      colBase: "Podstawa",
++      colNightP: "Dod. nocny",
++      colWeekendP: "Dod. weekend",
++      colOtP: "Dod. nadgodz.",
++      colHolidayP: "Dod. święto",
++      colVacation: "Urlop",
++      colAttend: "Bonus frekw.",
++      colTotal: "Razem",
++      totalRow: "RAZEM",
++      otSuffix: " + nadgodz.",
++      nahrSuffix: " + ekwiwalent",
++      settingsTitle: "Stawki i ustawienia zaawansowane",
++      settingsHint: "Stawki są osobiste — każdy w firmie może mieć swoje. Zmień je w dowolnym momencie; obowiązują tylko w tej przeglądarce.",
++      resetDefaults: "Przywróć stawki domyślne",
++      printBtn: "🖨 Drukuj / zapisz jako PDF",
++      toastSaved: "✓ Zapisano",
++      todayMark: "Dziś",
++      popoverClose: "Zamknij",
++      g_base: "Stawki podstawowe",
++      g_day: "Zmiana dzienna (07:00–17:10)",
++      g_night: "Zmiana nocna (18:00–04:10)",
++      g_bonuses: "Dodatki",
++      f_baseRate: "Podstawowa stawka godzinowa",
++      f_phvRate: "Średnia stawka PHV (urlop/święto)",
++      f_dayPaidHours: "Płatne godziny za zmianę dzienną",
++      f_nightPaidHours: "Płatne godziny za zmianę nocną",
++      f_nightDayPart: "…w tym dzień rozpoczęcia (18:00–24:00 minus przerwa)",
++      f_nightDayPartNight: "w tym nocne (22:00–24:00 minus przerwa)",
++      f_nightEndPart: "…w tym dzień zakończenia (00:00–04:10)",
++      f_nightEndPartNight: "w tym nocne (całe, 00:00–04:10)",
++      f_nightBonusPct: "Dodatek za pracę nocną (22:00–06:00)",
++      f_weekendBonusPct: "Dodatek za weekend (sob–niedz, cała zmiana)",
++      f_overtimeBonusPct: "Dodatek za nadgodziny",
++      f_holidayBonusMult: "Dodatek za święto (dodatkowo, wielokrotność PHV)",
++      f_attendanceBonusPct: "Bonus za frekwencję",
++      u_kch: "Kč/godz",
++      u_h: "godz",
++      u_pct: "%",
++      u_mult: "×",
++      currency: "Kč",
++      hoursUnit: "godz",
++      footerBy: "Code by",
++      privacyLink: "Prywatność i dane",
++      privacyTitle: "Prywatność i wykorzystanie danych",
++      privacyBody: "Twoje dane zostają u Ciebie\n\nWszystkie zmiany, stawki i ustawienia są przechowywane wyłącznie w localStorage Twojej przeglądarki na Twoim urządzeniu. Nic nie jest wysyłane na zewnętrzne serwery ani nigdzie synchronizowane — prywatność jest domyślna.\n\nCookies i reklamy\n\nAplikacja nie używa cookies ani identyfikatorów reklamowych i nie śledzi Cię na innych stronach. Nie przekazujemy żadnych informacji o odwiedzinach osobom trzecim.\n\nAnalityka odwiedzin\n\nKorzystamy z samodzielnie hostowanego Umami do zliczania odwiedzających, wyświetleń stron oraz godzin/dni najczęstszych wizyt. Umami nie używa cookies, nie identyfikuje Cię osobiście i nie śledzi Cię między stronami. Zbierane są wyłącznie metryki zagregowane. Dane kalkulatora (zmiany, stawki) nigdy nie są wysyłane do analityki.\n\nPodstawa prawna przetwarzania: uzasadniony interes (art. 6 ust. 1 lit. f GDPR) — zrozumienie korzystania z usługi bez identyfikacji użytkowników.\n\nLogi serwera\n\nJeśli korzystasz z oficjalnie hostowanej wersji, serwer WWW prowadzi standardowe techniczne logi dostępu (IP, czas, strona) w celu ochrony przed nadużyciami i zagregowanej statystyki odwiedzin. Logi są przechowywane nie dłużej niż 30 dni, a następnie automatycznie usuwane. Logi nie są nikomu udostępniane i nie zawierają danych kalkulatora.\n\nTwoje prawa\n\nMożesz zażądać informacji o przetwarzanych przez nas danych lub złożyć skargę do organu nadzorczego — w Czechach jest to Úřad pro ochranu osobních údajů (uoou.cz). Ponieważ lokalne dane kalkulatora nigdy nie opuszczają Twojego urządzenia, a analityka jest anonimowa, nie identyfikują Cię osobiście.\n\nZmiany polityki\n\nMożemy aktualizować tę politykę w miarę rozwoju usługi. Aktualna wersja jest zawsze dostępna na tej stronie.\n\nOstatnia aktualizacja: 12.09.2026\n\nKontakt\n\nPytania dotyczące prywatności: vladyslavsimonov22@gmail.com",
++      holidays: {
++        jan1: "Dzień Odrodzenia Niepodległego Państwa Czeskiego",
++        goodFriday: "Wielki Piątek",
++        easterMonday: "Poniedziałek Wielkanocny",
++        may1: "Święto Pracy",
++        may8: "Dzień Zwycięstwa",
++        jul5: "Święty Cyryl i Metody",
++        jul6: "Dzień Jana Husa",
++        sep28: "Dzień Czeskiej Państwowości",
++        oct28: "Dzień Powstania Czechosłowacji",
++        nov17: "Dzień Walki o Wolność i Demokrację",
++        dec24: "Wigilia",
++        dec25: "Boże Narodzenie",
++        dec26: "Drugi Dzień Świąt Bożego Narodzenia"
++      }
+     }
+   };
+ });
+-- 
+2.39.5
+
+
+From 6c9c43d4dfce9958b257f1ebc43958abe51abcc0 Mon Sep 17 00:00:00 2001
+From: Kimi <kimi@dev>
+Date: Mon, 14 Sep 2026 21:28:02 +0800
+Subject: [PATCH 2/4] Fix net salary math: statutory rounding (health 13.5%/3
+ up, social 7.1% up), taxpayer credit 2570 CZK (was wrong 3267)
+
+---
+ js/payroll.js | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/js/payroll.js b/js/payroll.js
+index 7ab2b6c..0d0b001 100644
+--- a/js/payroll.js
++++ b/js/payroll.js
+@@ -247,13 +247,18 @@
+     };
+   }
+ 
+-  /** Rough net from gross — Czech withholdings (health 4.5%, social 7.1%, 15% tax
+-   *  with the monthly taxpayer credit, rounded like payroll software does). */
++  /** Net from gross — Czech withholdings, statutory rounding included:
++   *  - health: total 13.5% rounded UP to whole Kč, employee pays 1/3 (rounded UP)
++   *  - social: 7.1% rounded UP to whole Kč
++   *  - tax: base rounded UP to whole 100 Kč, 15%, minus the monthly taxpayer
++   *    credit 2 570 Kč (30 840 Kč/year, valid 2022–2026; previous 3 267 was wrong)
++   *  Verified against official worked examples (e.g. gross 28 520 -> SP 2 025,
++   *  ZP 1 284; gross 40 000 -> net 31 930). */
+   function calcNetto(gross) {
+-    const zdrav = round0(gross * 0.045);
+-    const socialni = round0(gross * 0.071);
++    const zdrav = Math.ceil(Math.ceil(gross * 0.135) / 3);
++    const socialni = Math.ceil(gross * 0.071);
+     const zaklad = Math.ceil(gross / 100) * 100;
+-    const dan = Math.max(0, round0(zaklad * 0.15) - 3267);
++    const dan = Math.max(0, round0(zaklad * 0.15) - 2570);
+     return gross - zdrav - socialni - dan;
+   }
+ 
+-- 
+2.39.5
+
+
+From deffd7eb0bf55e5d44824d5283ace24f67f15f5d Mon Sep 17 00:00:00 2001
+From: Kimi <kimi@dev>
+Date: Mon, 14 Sep 2026 22:21:19 +0800
+Subject: [PATCH 3/4] =?UTF-8?q?Calibrate=20to=20real=20Adecco=20payslips:?=
+ =?UTF-8?q?=20PHV-based=20supplements=20(=C2=A7114/116/118),=20fixed=20Pra?=
+ =?UTF-8?q?covni=20odmena=20field,=20pulden=20(half=20shift+half=20vacatio?=
+ =?UTF-8?q?n)=20and=20nemoc=20(60%=20reduced=20PHV,=20insured-exempt)=20da?=
+ =?UTF-8?q?y=20types,=202026=20reduction=20bands;=20i18n=20x5=20+=20CSS=20?=
+ =?UTF-8?q?+=20API?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ api/server.js       |  20 ++++++--
+ css/styles.css      |  12 +++++
+ index.html          |   9 +++-
+ js/app.js           |  35 ++++++++-----
+ js/locales.js       |  50 +++++++++++++++++--
+ js/payroll.js       | 116 +++++++++++++++++++++++++++++++++++---------
+ test-calibration.js |  81 +++++++++++++++++++++++++++++++
+ 7 files changed, 278 insertions(+), 45 deletions(-)
+ create mode 100644 test-calibration.js
+
+diff --git a/api/server.js b/api/server.js
+index b3a9c4c..db9eeed 100644
+--- a/api/server.js
++++ b/api/server.js
+@@ -181,19 +181,27 @@ function handleCalculate(req, res) {
+       const s = body.shifts[i];
+       const type = s && Payroll.SHIFT_TYPES.indexOf(s.type) !== -1 ? s.type : "volno";
+       const isWorkShift = type === "den" || type === "noc";
++      /* the holiday worked/stayed-home choice also applies to a poludnevka */
++      const canHoliday = isWorkShift || type === "pulden";
+       shifts.push({
+         type: type,
+         overtime: isWorkShift && !!(s && s.overtime),
+-        holidayWork: isWorkShift && !(s && s.holidayWork === false)
++        holidayWork: canHoliday ? !(s && s.holidayWork === false) : false
+       });
+     }
+ 
+     const lang = validLang(body.lang) || "en";
+     const holidayMap = Payroll.buildHolidayMap(year, lang, LOCALES);
+ 
+-    const days = shifts.map(function (shift, i) {
++    const results = shifts.map(function (shift, i) {
++      return Payroll.calcDay(new Date(year, month - 1, i + 1), shift.type, shift, settings, holidayMap);
++    });
++    /* fixed monthly bonus (Pracovní odměna) layered over the raw per-day math */
++    const final = Payroll.withMonthlyBonus(results, settings.bonusMonthKc);
++
++    const days = final.map(function (r, i) {
++      const shift = shifts[i];
+       const date = new Date(year, month - 1, i + 1);
+-      const r = Payroll.calcDay(date, shift.type, shift, settings, holidayMap);
+       return {
+         day: i + 1,
+         date: Payroll.dateKey(date),
+@@ -204,12 +212,14 @@ function handleCalculate(req, res) {
+         holiday: r.holidayName,
+         /* column letters match the original workbook sheet "Vypocet" */
+         F: r.F, G: r.G, H: r.H, I: r.I, J: r.J, K: r.K, L: r.L,
+-        M: r.M, N: r.N, O: r.O, P: r.P, E: Math.round(r.E * 100) / 100
++        M: r.M, N: r.N, O: r.O, P: r.P, E: Math.round(r.E * 100) / 100,
++        exempt: Math.round((r.exempt || 0) * 100) / 100
+       };
+     });
+ 
+     const totals = Payroll.calcTotals(days);
+-    const netEstimate = Payroll.calcNetto(totals.E);
++    /* sick-pay compensation is taxed but not insured */
++    const netEstimate = Payroll.calcNetto(totals.E, totals.E - totals.exempt);
+ 
+     sendJson(res, 200, {
+       year: year,
+diff --git a/css/styles.css b/css/styles.css
+index e5b96ed..2a57157 100644
+--- a/css/styles.css
++++ b/css/styles.css
+@@ -13,6 +13,8 @@
+   --night-bg:#E8EAF6; --night-text:#2E3A80; --night-line:#C4CAEF;
+   --day-bg:#FFF4E0; --day-text:#8A5300; --day-line:#F3D9A5;
+   --off-bg:#EDEFEF; --off-text:#6B6E6E; --off-line:#D5D9D9;
++  --half-bg:#E0F2F1; --half-text:#00695C; --half-line:#B2DFDB;
++  --sick-bg:#FCE4EC; --sick-text:#AD1457; --sick-line:#F8BBD0;
+   --radius-sm:6px; --radius-md:8px; --radius-lg:12px;
+   --shadow-card: 0 1px 2px rgba(15,17,17,.1), 0 1px 0 rgba(15,17,17,.04);
+   --shadow-pop: 0 8px 24px rgba(15,17,17,.18);
+@@ -36,6 +38,8 @@ html[data-theme="dark"]{
+   --night-bg:rgba(99,102,241,.15); --night-text:#A5B4FC; --night-line:rgba(165,180,252,.28);
+   --day-bg:rgba(255,153,0,.11); --day-text:#FFC46B; --day-line:rgba(255,196,107,.28);
+   --off-bg:rgba(255,255,255,.05); --off-text:#9AA5B1; --off-line:rgba(255,255,255,.12);
++  --half-bg:rgba(0,150,136,.16); --half-text:#80CBC4; --half-line:rgba(128,203,196,.30);
++  --sick-bg:rgba(216,27,96,.14); --sick-text:#F48FB1; --sick-line:rgba(244,143,177,.30);
+ }
+ /* ink-900 turns near-black in dark — the totals divider must flip to the (now light) text color */
+ html[data-theme="dark"] table.breakdown tr.total-row td{border-top-color:var(--text-900);}
+@@ -155,6 +159,8 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
+ .brush-chip.t-den{background:var(--day-bg); color:var(--day-text); border-color:var(--day-line);}
+ .brush-chip.t-noc{background:var(--night-bg); color:var(--night-text); border-color:var(--night-line);}
+ .brush-chip.t-dovolena{background:var(--success-bg); color:var(--success-text); border-color:var(--success-line);}
++.brush-chip.t-pulden{background:var(--half-bg); color:var(--half-text); border-color:var(--half-line);}
++.brush-chip.t-nemoc{background:var(--sick-bg); color:var(--sick-text); border-color:var(--sick-line);}
+ .brush-chip:hover{filter:brightness(.97);}
+ .brush-chip.sel{outline:2px solid var(--ink-900); outline-offset:1px;}
+ .brush-ot{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--text-900);}
+@@ -201,6 +207,10 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
+ .cal-day.t-dovolena .chip{background:var(--surface-0); color:var(--success-text); border:1px solid var(--success-line);}
+ .cal-day.t-svatek{background:var(--danger-bg); border-color:var(--danger-line);}
+ .cal-day.t-svatek .chip{background:var(--surface-0); color:var(--danger-text); border:1px solid var(--danger-line);}
++.cal-day.t-pulden{background:var(--half-bg); border-color:var(--half-line);}
++.cal-day.t-pulden .chip{background:var(--surface-0); color:var(--half-text); border:1px solid var(--half-line);}
++.cal-day.t-nemoc{background:var(--sick-bg); border-color:var(--sick-line);}
++.cal-day.t-nemoc .chip{background:var(--surface-0); color:var(--sick-text); border:1px solid var(--sick-line);}
+ /* náhrada mzdy — holiday fell on the shift but the day was not worked */
+ .cal-day.nahrada{border-style:dashed; border-width:2px;}
+ .cal-day.nahrada .chip{background:var(--surface-0); color:var(--danger-text); border:1px dashed var(--danger-line);}
+@@ -248,6 +258,8 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
+ .pop-opt .dot.t-den{background:var(--day-bg); border-color:var(--day-line);}
+ .pop-opt .dot.t-noc{background:var(--night-bg); border-color:var(--night-line);}
+ .pop-opt .dot.t-dovolena{background:var(--success-bg); border-color:var(--success-line);}
++.pop-opt .dot.t-pulden{background:var(--half-bg); border-color:var(--half-line);}
++.pop-opt .dot.t-nemoc{background:var(--sick-bg); border-color:var(--sick-line);}
+ .pop-opt .opt-label{flex:1;}
+ .pop-opt .check{color:var(--accent-600); font-weight:800;}
+ .pop-sep{height:1px; background:var(--surface-200); margin:7px 2px;}
+diff --git a/index.html b/index.html
+index 0570f27..200d285 100644
+--- a/index.html
++++ b/index.html
+@@ -62,9 +62,14 @@
+       </label>
+       <label class="rates-field">
+         <span data-i18n="f_phvRate">Average PHV rate (vacation/holiday)</span>
+-        <input type="number" id="ratePhvInput" min="0" step="0.01" value="246.07">
++        <input type="number" id="ratePhvInput" min="0" step="0.01" value="246.06">
+         <span class="unit" data-i18n="u_kch">CZK/h</span>
+       </label>
++      <label class="rates-field">
++        <span data-i18n="f_bonusMonthKc">Pracovní odměna (fixed, per month)</span>
++        <input type="number" id="rateBonusInput" min="0" step="1" value="0">
++        <span class="unit" data-i18n="u_kc">Kč</span>
++      </label>
+       <span class="rates-hint" data-i18n="myRatesHint">Personal hourly rates — used for your calculation only</span>
+     </div>
+   </section>
+@@ -97,6 +102,8 @@
+       <span><i style="background:var(--day-bg); border:1px solid var(--day-line)"></i><span data-i18n="legendDay">Day 7:00–17:10</span></span>
+       <span><i style="background:var(--night-bg); border:1px solid var(--night-line)"></i><span data-i18n="legendNight">Night 18:00–04:10</span></span>
+       <span><i style="background:var(--success-bg); border:1px solid var(--success-line)"></i><span data-i18n="legendVacation">Vacation</span></span>
++      <span><i style="background:var(--half-bg); border:1px solid var(--half-line)"></i><span data-i18n="legendHalf">Half-day — ½ shift + ½ paid vacation</span></span>
++      <span><i style="background:var(--sick-bg); border:1px solid var(--sick-line)"></i><span data-i18n="legendSick">Sick — 60 % from employer (first 14 days)</span></span>
+       <span><i style="background:var(--danger-bg); border:1px solid var(--danger-line)"></i><span data-i18n="legendHoliday">Public holiday — auto bonus</span></span>
+       <span><i class="lg-nahr" style="border:2px dashed var(--danger-text)"></i><span data-i18n="legendNahr">Holiday not worked (paid)</span></span>
+       <span data-i18n="legendOvertime">☑ Overtime = +25 % on top of the shift</span>
+diff --git a/js/app.js b/js/app.js
+index fbcccf9..46f3f8d 100644
+--- a/js/app.js
++++ b/js/app.js
+@@ -74,6 +74,7 @@
+   const nameInput = document.getElementById("nameInput");
+   const rateBaseInput = document.getElementById("rateBaseInput");
+   const ratePhvInput = document.getElementById("ratePhvInput");
++  const rateBonusInput = document.getElementById("rateBonusInput");
+   const settingsGrid = document.getElementById("settingsGrid");
+   const breakdownTable = document.getElementById("breakdownTable");
+   const toast = document.getElementById("toast");
+@@ -153,6 +154,7 @@
+   }
+   bindRateInput(rateBaseInput, "baseRate");
+   bindRateInput(ratePhvInput, "phvRate");
++  bindRateInput(rateBonusInput, "bonusMonthKc");
+ 
+   /* ============ Settings form ============ */
+   /* Built from Payroll.SETTINGS_FIELDS so the form always matches the math. */
+@@ -242,11 +244,16 @@
+   function renderSummary(results) {
+     const gross = results.reduce(function (a, r) { return a + r.E; }, 0);
+     const hours = results.reduce(function (a, r) { return a + r.F; }, 0);
+-    const workedDays = state.shifts.filter(function (d) { return d.type !== "volno"; }).length;
++    /* sick-pay compensation is taxed but not insured — netto needs the split */
++    const exempt = results.reduce(function (a, r) { return a + (r.exempt || 0); }, 0);
++    /* worked days: full shifts count 1, a poludnevka counts 0.5 (16,5 dne style) */
++    const workedDays = state.shifts.reduce(function (a, d) {
++      return a + (d.type === "den" || d.type === "noc" ? 1 : (d.type === "pulden" ? 0.5 : 0));
++    }, 0);
+     document.getElementById("sumGross").textContent = I18n.fmtMoney(gross);
+-    document.getElementById("sumNet").textContent = I18n.fmtMoney(Payroll.calcNetto(gross));
++    document.getElementById("sumNet").textContent = I18n.fmtMoney(Payroll.calcNetto(gross, gross - exempt));
+     document.getElementById("sumHours").textContent = I18n.fmtHours(hours);
+-    document.getElementById("sumDays").textContent = workedDays + " " + I18n.plural(workedDays, I18n.t("daysForms"));
++    document.getElementById("sumDays").textContent = I18n.fmtNum(workedDays) + " " + I18n.plural(workedDays, I18n.t("daysForms"));
+   }
+ 
+   /* The breakdown is the one place where building an HTML string is far more
+@@ -336,15 +343,18 @@
+     /* keep the quick rate fields in sync (also after changes from the settings panel) */
+     if (document.activeElement !== rateBaseInput) rateBaseInput.value = state.settings.baseRate;
+     if (document.activeElement !== ratePhvInput) ratePhvInput.value = state.settings.phvRate;
++    if (document.activeElement !== rateBonusInput) rateBonusInput.value = state.settings.bonusMonthKc;
+ 
+     const holidayMap = holidayMapFor(state.year);
+ 
+     const n = Payroll.daysInMonth(state.year, state.month);
+-    const results = [];
++    const resultsRaw = [];
+     for (let i = 0; i < n; i++) {
+       const entry = state.shifts[i] || { type: "volno", overtime: false, holidayWork: true };
+-      results.push(Payroll.calcDay(new Date(state.year, state.month, i + 1), entry.type, entry, state.settings, holidayMap));
++      resultsRaw.push(Payroll.calcDay(new Date(state.year, state.month, i + 1), entry.type, entry, state.settings, holidayMap));
+     }
++    /* fixed monthly bonus (Pracovní odměna) is layered on top of the raw per-day math */
++    const results = Payroll.withMonthlyBonus(resultsRaw, state.settings.bonusMonthKc);
+ 
+     window.CalendarView.render(calendarWrap, {
+       year: state.year, month: state.month,
+@@ -361,7 +371,8 @@
+         if (patch.overtime !== undefined && (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc")) {
+           state.shifts[idx].overtime = patch.overtime;
+         }
+-        if (patch.holidayWork !== undefined && (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc")) {
++        if (patch.holidayWork !== undefined &&
++          (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc" || state.shifts[idx].type === "pulden")) {
+           state.shifts[idx].holidayWork = !!patch.holidayWork;
+         }
+         persistAll();
+@@ -376,11 +387,13 @@
+           /* keep the user's holiday preference for the day when repainting */
+           holidayWork: prev.holidayWork !== false
+         };
+-        /* update the shared result for this day so the totals stay live while painting */
+-        results[idx] = Payroll.calcDay(new Date(state.year, state.month, idx + 1), b.type, state.shifts[idx], state.settings, holidayMap);
+-        window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: results, brush: b }, idx);
+-        renderSummary(results);
+-        renderBreakdown(results);
++        /* update the shared result for this day so the totals stay live while painting;
++         * re-derive the bonus layer from raw results (never double-apply) */
++        resultsRaw[idx] = Payroll.calcDay(new Date(state.year, state.month, idx + 1), b.type, state.shifts[idx], state.settings, holidayMap);
++        const painted = Payroll.withMonthlyBonus(resultsRaw, state.settings.bonusMonthKc);
++        window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: painted, brush: b }, idx);
++        renderSummary(painted);
++        renderBreakdown(painted);
+       },
+       onPaintEnd: function () {
+         persistAll();
+diff --git a/js/locales.js b/js/locales.js
+index 5f9de44..f701ac2 100644
+--- a/js/locales.js
++++ b/js/locales.js
+@@ -63,6 +63,8 @@
+       legendDay: "Day 7:00–17:10",
+       legendNight: "Night 18:00–04:10",
+       legendVacation: "Vacation",
++      legendHalf: "Half-day — ½ shift + ½ paid vacation",
++      legendSick: "Sick — 60 % from employer (first 14 days)",
+       legendHoliday: "Public holiday — auto bonus",
+       legendNahr: "Holiday not worked (paid)",
+       legendOvertime: "☑ Overtime = +25 % on top of the shift",
+@@ -75,11 +77,15 @@
+       type_noc: "Night shift",
+       type_dovolena: "Vacation",
+       type_svatek: "Holiday (legacy)",
++      type_pulden: "Half-day (½ shift + ½ vacation)",
++      type_nemoc: "Sick leave (60 %)",
+       ts_volno: "Off",
+       ts_den: "Day",
+       ts_noc: "Night",
+       ts_dovolena: "Vac.",
+       ts_svatek: "Hol.",
++      ts_pulden: "Half",
++      ts_nemoc: "Sick",
+       ts_nahr: "Paid",
+       breakdownTitle: "Detailed breakdown by day",
+       colNum: "#",
+@@ -94,7 +100,7 @@
+       colWeekendP: "Weekend +",
+       colOtP: "OT +",
+       colHolidayP: "Holiday +",
+-      colVacation: "Vacation",
++      colVacation: "Vac./comp.",
+       colAttend: "Attend. +",
+       colTotal: "Total",
+       totalRow: "TOTAL",
+@@ -124,10 +130,12 @@
+       f_overtimeBonusPct: "Overtime bonus",
+       f_holidayBonusMult: "Holiday bonus (extra, multiple of PHV)",
+       f_attendanceBonusPct: "Attendance bonus",
++      f_bonusMonthKc: "Pracovní odměna (fixed, per month)",
+       u_kch: "CZK/h",
+       u_h: "h",
+       u_pct: "%",
+       u_mult: "×",
++      u_kc: "Kč",
+       currency: "CZK",
+       hoursUnit: "h",
+       footerBy: "Code by",
+@@ -194,6 +202,8 @@
+       legendDay: "День 7:00–17:10",
+       legendNight: "Ночь 18:00–04:10",
+       legendVacation: "Отпуск",
++      legendHalf: "Полудневка — полсмены + полдня оплачиваемого отпуска",
++      legendSick: "Больничный — 60 % от работодателя (первые 14 дней)",
+       legendHoliday: "Праздник — бонус авто",
+       legendNahr: "Праздник — не выходил (оплачен)",
+       legendOvertime: "☑ Переработка = +25 % к смене",
+@@ -206,11 +216,15 @@
+       type_noc: "Ночная смена",
+       type_dovolena: "Отпуск",
+       type_svatek: "Праздник (устар.)",
++      type_pulden: "Полудневка (½ смены + ½ отпуска)",
++      type_nemoc: "Больничный (60 %)",
+       ts_volno: "Вых.",
+       ts_den: "День",
+       ts_noc: "Ночь",
+       ts_dovolena: "Отп.",
+       ts_svatek: "Празд.",
++      ts_pulden: "Пол.",
++      ts_nemoc: "Бол.",
+       ts_nahr: "Комп.",
+       breakdownTitle: "Подробная разбивка по дням",
+       colNum: "№",
+@@ -225,7 +239,7 @@
+       colWeekendP: "Выходные +",
+       colOtP: "Перераб. +",
+       colHolidayP: "Праздник +",
+-      colVacation: "Отпуск",
++      colVacation: "Отпуск/комп.",
+       colAttend: "Аттест. +",
+       colTotal: "Итого",
+       totalRow: "ИТОГО",
+@@ -255,10 +269,12 @@
+       f_overtimeBonusPct: "Надбавка за переработку",
+       f_holidayBonusMult: "Надбавка за праздник (дополнительно, множитель PHV)",
+       f_attendanceBonusPct: "Бонус за явку",
++      f_bonusMonthKc: "Pracovní odměna (фикс., за месяц)",
+       u_kch: "Kč/ч",
+       u_h: "ч",
+       u_pct: "%",
+       u_mult: "×",
++      u_kc: "Kč",
+       currency: "Kč",
+       hoursUnit: "ч",
+       footerBy: "Код",
+@@ -325,6 +341,8 @@
+       legendDay: "День 7:00–17:10",
+       legendNight: "Ніч 18:00–04:10",
+       legendVacation: "Відпустка",
++      legendHalf: "Південка — півзміни + пів дня оплачуваної відпустки",
++      legendSick: "Лікарняний — 60 % від роботодавця (перші 14 днів)",
+       legendHoliday: "Свято — бонус авто",
+       legendNahr: "Свято — не виходив (оплачено)",
+       legendOvertime: "☑ Переробка = +25 % до зміни",
+@@ -337,11 +355,15 @@
+       type_noc: "Нічна зміна",
+       type_dovolena: "Відпустка",
+       type_svatek: "Свято (застар.)",
++      type_pulden: "Південка (½ зміни + ½ відпустки)",
++      type_nemoc: "Лікарняний (60 %)",
+       ts_volno: "Вих.",
+       ts_den: "День",
+       ts_noc: "Ніч",
+       ts_dovolena: "Відп.",
+       ts_svatek: "Свят.",
++      ts_pulden: "Пів.",
++      ts_nemoc: "Лік.",
+       ts_nahr: "Комп.",
+       breakdownTitle: "Детальний розпис по днях",
+       colNum: "№",
+@@ -356,7 +378,7 @@
+       colWeekendP: "Вихідні +",
+       colOtP: "Перероб. +",
+       colHolidayP: "Свято +",
+-      colVacation: "Відпустка",
++      colVacation: "Відп./комп.",
+       colAttend: "Відвід. +",
+       colTotal: "Разом",
+       totalRow: "РАЗОМ",
+@@ -386,10 +408,12 @@
+       f_overtimeBonusPct: "Надбавка за переробку",
+       f_holidayBonusMult: "Надбавка за свято (додатково, множник PHV)",
+       f_attendanceBonusPct: "Бонус за відвідуваність",
++      f_bonusMonthKc: "Pracovní odměna (фікс., за місяць)",
+       u_kch: "Kč/год",
+       u_h: "год",
+       u_pct: "%",
+       u_mult: "×",
++      u_kc: "Kč",
+       currency: "Kč",
+       hoursUnit: "год",
+       footerBy: "Код",
+@@ -456,6 +480,8 @@
+       legendDay: "Denní 7:00–17:10",
+       legendNight: "Noční 18:00–04:10",
+       legendVacation: "Dovolená",
++      legendHalf: "Půlden — půl směny + půl dne placené dovolené",
++      legendSick: "Nemoc — 60 % od zaměstnavatele (prvních 14 dnů)",
+       legendHoliday: "Státní svátek — auto příplatek",
+       legendNahr: "Svátek — nepracováno (náhrada)",
+       legendOvertime: "☑ Přesčas = +25 % k dané směně",
+@@ -468,11 +494,15 @@
+       type_noc: "Noční směna",
+       type_dovolena: "Dovolená",
+       type_svatek: "Svátek (legacy)",
++      type_pulden: "Půlden (½ směny + ½ dovolené)",
++      type_nemoc: "Nemocenská (60 %)",
+       ts_volno: "Volno",
+       ts_den: "Den",
+       ts_noc: "Noc",
+       ts_dovolena: "Dovol.",
+       ts_svatek: "Svátek",
++      ts_pulden: "Půl",
++      ts_nemoc: "Nem.",
+       ts_nahr: "Náhr.",
+       breakdownTitle: "Podrobný rozpis podle dní",
+       colNum: "#",
+@@ -487,7 +517,7 @@
+       colWeekendP: "Př. víkend",
+       colOtP: "Př. přesčas",
+       colHolidayP: "Př. svátek",
+-      colVacation: "Dovolená",
++      colVacation: "Náhrady",
+       colAttend: "Docház. bonus",
+       colTotal: "Celkem",
+       totalRow: "CELKEM",
+@@ -517,10 +547,12 @@
+       f_overtimeBonusPct: "Příplatek za přesčas",
+       f_holidayBonusMult: "Příplatek za svátek (navíc, násobek PHV)",
+       f_attendanceBonusPct: "Docházkový bonus",
++      f_bonusMonthKc: "Pracovní odměna (pevná, za měsíc)",
+       u_kch: "Kč/h",
+       u_h: "h",
+       u_pct: "%",
+       u_mult: "×",
++      u_kc: "Kč",
+       currency: "Kč",
+       hoursUnit: "h",
+       footerBy: "Code by",
+@@ -587,6 +619,8 @@
+       legendDay: "Dzień 7:00–17:10",
+       legendNight: "Noc 18:00–04:10",
+       legendVacation: "Urlop",
++      legendHalf: "Pół dnia — pół zmiany + pół dnia płatnego urlopu",
++      legendSick: "Zwolnienie lekarskie — 60 % od pracodawcy (pierwsze 14 dni)",
+       legendHoliday: "Święto państwowe — automatyczny dodatek",
+       legendNahr: "Święto nieprzepracowane (płatne)",
+       legendOvertime: "☑ Nadgodziny = +25 % do zmiany",
+@@ -599,11 +633,15 @@
+       type_noc: "Zmiana nocna",
+       type_dovolena: "Urlop",
+       type_svatek: "Święto (przestarz.)",
++      type_pulden: "Pół dnia (½ zmiany + ½ urlopu)",
++      type_nemoc: "Zwolnienie lekarskie (60 %)",
+       ts_volno: "Wolne",
+       ts_den: "Dzień",
+       ts_noc: "Noc",
+       ts_dovolena: "Url.",
+       ts_svatek: "Święto",
++      ts_pulden: "Pół",
++      ts_nemoc: "L4",
+       ts_nahr: "Płatne",
+       breakdownTitle: "Szczegółowy rozpis według dni",
+       colNum: "#",
+@@ -618,7 +656,7 @@
+       colWeekendP: "Dod. weekend",
+       colOtP: "Dod. nadgodz.",
+       colHolidayP: "Dod. święto",
+-      colVacation: "Urlop",
++      colVacation: "Urlop/ekwiw.",
+       colAttend: "Bonus frekw.",
+       colTotal: "Razem",
+       totalRow: "RAZEM",
+@@ -648,10 +686,12 @@
+       f_overtimeBonusPct: "Dodatek za nadgodziny",
+       f_holidayBonusMult: "Dodatek za święto (dodatkowo, wielokrotność PHV)",
+       f_attendanceBonusPct: "Bonus za frekwencję",
++      f_bonusMonthKc: "Pracovní odměna (stała, za miesiąc)",
+       u_kch: "Kč/godz",
+       u_h: "godz",
+       u_pct: "%",
+       u_mult: "×",
++      u_kc: "Kč",
+       currency: "Kč",
+       hoursUnit: "godz",
+       footerBy: "Code by",
+diff --git a/js/payroll.js b/js/payroll.js
+index 0d0b001..48c7ee7 100644
+--- a/js/payroll.js
++++ b/js/payroll.js
+@@ -21,10 +21,14 @@
+ })(typeof self !== "undefined" ? self : this, function () {
+   "use strict";
+ 
+-  /** Company-wide defaults (from the workbook, list "Nastaveni"). */
++  /** Company-wide defaults (from the workbook, list "Nastaveni"; rates verified
++   *  against real Adecco/Amazon BRQ payslips 05–07/2026).
++   *  attendanceBonusPct defaults to 0: payslips show no percentage-of-base bonus
++   *  anymore — "Pracovní odměna" is a variable performance amount, entered per
++   *  month via bonusMonthKc. */
+   const DEFAULT_SETTINGS = {
+     baseRate: 218,
+-    phvRate: 246.07,
++    phvRate: 246.06,
+     nightPaidHours: 9.66666666666667,
+     nightDayPart: 5.5,
+     nightDayPartNight: 1.5,
+@@ -35,7 +39,8 @@
+     weekendBonusPct: 0.10,
+     overtimeBonusPct: 0.25,
+     holidayBonusMult: 1,
+-    attendanceBonusPct: 0.10
++    attendanceBonusPct: 0,
++    bonusMonthKc: 0
+   };
+ 
+   /**
+@@ -56,7 +61,8 @@
+     { group: "g_bonuses", key: "weekendBonusPct", unit: "u_pct", step: 0.001, pct: true },
+     { group: "g_bonuses", key: "overtimeBonusPct", unit: "u_pct", step: 0.001, pct: true },
+     { group: "g_bonuses", key: "holidayBonusMult", unit: "u_mult", step: 0.01 },
+-    { group: "g_bonuses", key: "attendanceBonusPct", unit: "u_pct", step: 0.001, pct: true }
++    { group: "g_bonuses", key: "attendanceBonusPct", unit: "u_pct", step: 0.001, pct: true },
++    { group: "g_bonuses", key: "bonusMonthKc", unit: "u_kc", step: 1 }
+   ];
+ 
+   /**
+@@ -64,9 +70,9 @@
+    * shifts saved by the old version still calculate the same; the UI no longer
+    * offers it — holidays are detected from the calendar automatically.
+    */
+-  const SHIFT_TYPES = ["volno", "den", "noc", "dovolena", "svatek"];
++  const SHIFT_TYPES = ["volno", "den", "noc", "dovolena", "svatek", "pulden", "nemoc"];
+   /** Types shown in pickers (svatek handled automatically). */
+-  const WORK_TYPES = ["volno", "den", "noc", "dovolena"];
++  const WORK_TYPES = ["volno", "den", "noc", "pulden", "dovolena", "nemoc"];
+ 
+   /* ---------- date helpers ---------- */
+ 
+@@ -148,6 +154,21 @@
+   function round4(x) { return Math.round(x * 10000) / 10000; }
+   function round0(x) { return Math.round(x); }
+ 
++  /**
++   * PHV reduced by the statutory bands for sick-pay compensation (náhrada mzdy
++   * při DPN, § 192 zákoníku práce). Hourly reduction thresholds 2026:
++   * 285.78 / 428.58 / 856.98 Kč, credited at 90 / 60 / 30 %; nothing above the
++   * third band counts. (Derived from the daily sickness-insurance thresholds
++   * 1 633 / 2 449 / 4 897 Kč × 0.175, sdělení MPSV č. 397/2025 Sb.)
++   */
++  const SICK_BANDS_2026 = [285.78, 428.58, 856.98];
++  function reducePhv(phv) {
++    const h1 = SICK_BANDS_2026[0], h2 = SICK_BANDS_2026[1], h3 = SICK_BANDS_2026[2];
++    return Math.min(phv, h1) * 0.9 +
++      Math.max(0, Math.min(phv, h2) - h1) * 0.6 +
++      Math.max(0, Math.min(phv, h3) - h2) * 0.3;
++  }
++
+   /**
+    * Per-day payroll.
+    *
+@@ -170,14 +191,30 @@
+     const holidayWork = opts.holidayWork !== false; /* default: they came in */
+ 
+     const isDen = type === "den", isNoc = type === "noc", isDov = type === "dovolena",
+-      isSva = type === "svatek", isVolno = type === "volno";
++      isSva = type === "svatek", isVolno = type === "volno",
++      isPul = type === "pulden", isNem = type === "nemoc";
+     const nextDate = addDays(date, 1);
+     const dk = dateKey(date), ndk = dateKey(nextDate);
+     const onHoliday = holidayMap.has(dk), nextOnHoliday = holidayMap.has(ndk);
+ 
++    /* Sick day (DPN, first 14 calendar days): the employer pays 60 % of the
++     * reduced PHV for the missed shift's hours (§ 192 ZP). No supplements, no
++     * attendance bonus; holidays ignored. The compensation is TAXABLE but NOT
++     * subject to social/health insurance — carried out via `exempt`. */
++    if (isNem) {
++      const F = s.dayPaidHours; /* day and night shifts are both 9.6667 h */
++      const O = 0.6 * reducePhv(s.phvRate) * F;
++      return {
++        F: F, G: 0, H: 0, I: "-", J: 0, K: 0, L: 0, M: 0, N: 0, O: O, P: 0, E: O,
++        exempt: O, isWeekend: isWeekend(date), holidayName: null,
++        isHolidayShift: false, holidayWork: true
++      };
++    }
++
+     let F;
+     if (isVolno) F = 0;
+     else if (isDen) F = s.dayPaidHours;
++    else if (isPul) F = s.dayPaidHours / 2; /* poludnevka: half a day shift worked… */
+     else F = s.nightPaidHours; // noc, dovolena, svatek — matches the original formula
+ 
+     let G = 0;
+@@ -186,22 +223,24 @@
+     /* weekend hours account for night shifts crossing midnight into a weekend day */
+     let H = 0;
+     if (isVolno) H = 0;
+-    else if (isDen) H = isWeekend(date) ? F : 0;
++    else if (isDen || isPul) H = isWeekend(date) ? F : 0;
+     else if (isNoc) H = ((isWeekend(date) ? s.nightDayPart : 0) + (isWeekend(nextDate) ? s.nightEndPart : 0)) * F / s.nightPaidHours;
+     else H = isWeekend(date) ? F : 0; // dovolena, svatek
+ 
+     /* a real shift counts as a holiday shift if any of its paid hours fall on the
+      * holiday — for nights that's the start day OR the spillover end day */
+-    const isHolidayShift = (isDen || isNoc) && (onHoliday || (isNoc && nextOnHoliday));
++    const isHolidayShift = (isDen || isNoc || isPul) && (onHoliday || (isNoc && nextOnHoliday));
+ 
+     /* náhrada mzdy: the shift fell on a holiday but the employee stayed home.
+      * Paid average earnings for the shift hours, nothing else — no supplements,
+-     * no overtime, no attendance bonus (zákoník práce § 115). */
++     * no overtime, no attendance bonus (zákoník práce § 115). A poludnevka keeps
++     * its second half — the paid vacation hours are unaffected by the holiday. */
+     if (isHolidayShift && !holidayWork) {
+       const J = F * s.phvRate;
++      const O = isPul ? F * s.phvRate : 0;
+       return {
+-        F: F, G: 0, H: 0, I: "NÁH", J: J, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: J,
+-        isWeekend: isWeekend(date), holidayName: holidayMap.get(dk) || null,
++        F: F, G: 0, H: 0, I: "NÁH", J: J, K: 0, L: 0, M: 0, N: 0, O: O, P: 0, E: J + O,
++        exempt: 0, isWeekend: isWeekend(date), holidayName: holidayMap.get(dk) || null,
+         isHolidayShift: true, holidayWork: false
+       };
+     }
+@@ -213,11 +252,15 @@
+     let J;
+     if (isDov) J = 0; else if (isSva) J = F * s.phvRate; else J = F * s.baseRate;
+ 
+-    const K = G * s.baseRate * s.nightBonusPct;
+-    const L = H * s.baseRate * s.weekendBonusPct;
++    /* Supplements are statutory minimums computed from the AVERAGE earnings (PHV),
++     * not the base rate — zákoník práce § 116 (night), § 118 (weekend), § 114
++     * (overtime). Proven by payslip 07/2026: PHV 246.06 vs base 218 —
++     * noční 17 h -> 418 Kč = 17 × 246.06 × 10 %, víkend 34.5 h -> 849 Kč. */
++    const K = G * s.phvRate * s.nightBonusPct;
++    const L = H * s.phvRate * s.weekendBonusPct;
+ 
+     let M = 0;
+-    if (overtime && (isDen || isNoc)) M = F * s.baseRate * s.overtimeBonusPct;
++    if (overtime && (isDen || isNoc)) M = F * s.phvRate * s.overtimeBonusPct;
+ 
+     /* holiday supplement (worked case): only for hours actually on the holiday —
+      * a night shift gets the bonus just for the holiday portion. Legacy "svatek"
+@@ -227,7 +270,7 @@
+       const partToday = onHoliday ? s.nightDayPart * F / s.nightPaidHours : 0;
+       const partNext = nextOnHoliday ? s.nightEndPart * F / s.nightPaidHours : 0;
+       N = s.phvRate * s.holidayBonusMult * (partToday + partNext);
+-    } else if (isDen && onHoliday) {
++    } else if ((isDen || isPul) && onHoliday) {
+       N = s.phvRate * s.holidayBonusMult * F;
+     } else if (isNoc && (onHoliday || nextOnHoliday)) {
+       const partToday = onHoliday ? s.nightDayPart * F / s.nightPaidHours : 0;
+@@ -235,14 +278,16 @@
+       N = s.phvRate * s.holidayBonusMult * (partToday + partNext);
+     }
+ 
+-    const O = isDov ? F * s.phvRate : 0;
++    /* O — náhrady: vacation pays PHV for its hours; a poludnevka adds its second
++     * half as paid vacation (payslip 05/2026: 16.5 worked days + dovolená 4.83 h). */
++    const O = (isDov || isPul) ? F * s.phvRate : 0;
+     let P = 0;
+     if (!isDov && !isSva) P = J * s.attendanceBonusPct;
+ 
+     const E = J + K + L + M + N + O + P;
+     return {
+       F: F, G: G, H: H, I: I, J: J, K: K, L: L, M: M, N: N, O: O, P: P, E: E,
+-      isWeekend: isWeekend(date), holidayName: onHoliday ? holidayMap.get(dk) : null,
++      exempt: 0, isWeekend: isWeekend(date), holidayName: onHoliday ? holidayMap.get(dk) : null,
+       isHolidayShift: isHolidayShift, holidayWork: holidayWork
+     };
+   }
+@@ -254,19 +299,42 @@
+    *    credit 2 570 Kč (30 840 Kč/year, valid 2022–2026; previous 3 267 was wrong)
+    *  Verified against official worked examples (e.g. gross 28 520 -> SP 2 025,
+    *  ZP 1 284; gross 40 000 -> net 31 930). */
+-  function calcNetto(gross) {
+-    const zdrav = Math.ceil(Math.ceil(gross * 0.135) / 3);
+-    const socialni = Math.ceil(gross * 0.071);
++  function calcNetto(gross, insurable) {
++    /* insurable = part of gross subject to SP/ZP (defaults to the whole gross).
++     * Sick-pay compensation (náhrada mzdy při DPN) is taxed but NOT insured. */
++    const ins = (typeof insurable === "number" && isFinite(insurable)) ? insurable : gross;
++    const zdrav = Math.ceil(Math.ceil(ins * 0.135) / 3);
++    const socialni = Math.ceil(ins * 0.071);
+     const zaklad = Math.ceil(gross / 100) * 100;
+     const dan = Math.max(0, round0(zaklad * 0.15) - 2570);
+     return gross - zdrav - socialni - dan;
+   }
+ 
++  /**
++   * Distribute a fixed monthly bonus ("Pracovní odměna" — a variable performance
++   * amount on Adecco payslips: 908 / 3 793 / 2 149 Kč, no derivable formula)
++   * evenly over days with J > 0 (actually worked shifts). Returns a NEW array
++   * with adjusted P and E; the input is never mutated. bonusKc <= 0 -> as-is.
++   */
++  function withMonthlyBonus(results, bonusKc) {
++    if (!(bonusKc > 0)) return results;
++    const worked = results.filter(function (r) { return r.J > 0; });
++    if (!worked.length) return results;
++    const share = bonusKc / worked.length;
++    return results.map(function (r) {
++      if (r.J <= 0) return r;
++      const copy = Object.assign({}, r);
++      copy.P += share;
++      copy.E += share;
++      return copy;
++    });
++  }
++
+   /** Sum a per-day result array into month totals (column letters again). */
+   function calcTotals(results) {
+-    const totals = { F: 0, G: 0, H: 0, J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0 };
++    const totals = { F: 0, G: 0, H: 0, J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0, exempt: 0 };
+     results.forEach(function (r) {
+-      Object.keys(totals).forEach(function (k) { totals[k] += r[k]; });
++      Object.keys(totals).forEach(function (k) { totals[k] += (r[k] || 0); });
+     });
+     totals.E = Math.round(totals.E * 100) / 100;
+     return totals;
+@@ -323,6 +391,8 @@
+     calcDay: calcDay,
+     calcNetto: calcNetto,
+     calcTotals: calcTotals,
++    reducePhv: reducePhv,
++    withMonthlyBonus: withMonthlyBonus,
+     round4: round4,
+     round0: round0
+   };
+diff --git a/test-calibration.js b/test-calibration.js
+new file mode 100644
+index 0000000..b54eb10
+--- /dev/null
++++ b/test-calibration.js
+@@ -0,0 +1,81 @@
++/* Calibration test — reproduces real Adecco/Amazon BRQ payslips 05–07/2026
++ * and verifies the new pulden/nemoc day types. Run: node test-calibration.js */
++"use strict";
++const Payroll = require("./js/payroll.js");
++const LOCALES = require("./js/locales.js");
++
++let pass = 0, fail = 0;
++function ok(cond, name) {
++  if (cond) { pass++; console.log("PASS  " + name); }
++  else { fail++; console.log("FAIL  " + name); }
++}
++function close(a, b, tol) { return Math.abs(a - b) <= (tol === undefined ? 0.51 : tol); }
++
++const S = Object.assign({}, Payroll.DEFAULT_SETTINGS);
++const hol = Payroll.buildHolidayMap(2026, "en", LOCALES);
++function day(y, m, d, type, opts, s) {
++  return Payroll.calcDay(new Date(y, m - 1, d), type, opts || {}, s || S, hol);
++}
++
++/* --- 1. Netto reproduces payslips exactly (čistá mzda) --- */
++ok(Payroll.calcNetto(41088) === 32726, "netto 41088 -> 32726 (payslip 05/2026)");
++ok(Payroll.calcNetto(44607) === 35296, "netto 44607 -> 35296 (payslip 06/2026)");
++ok(Payroll.calcNetto(43673) === 34621, "netto 43673 -> 34621 (payslip 07/2026)");
++
++/* --- 2. Supplements use PHV, not base (payslip 07/2026: PHV 246.06 vs base 218) --- */
++const S3 = Object.assign({}, S, { phvRate: 246.06 });
++const noc = day(2026, 7, 6, "noc"); /* Monday night */
++ok(close(noc.G, 5.6667, 0.001) && close(noc.K, 5.6667 * 246.06 * 0.1, 0.05),
++  "night bonus from PHV: K=" + noc.K.toFixed(2) + " (was 123.40 from base)");
++
++/* weekend day shift: L = H x PHV x 10% — 34.5 h -> 849 Kč on the payslip */
++const sat = day(2026, 7, 4, "den", {}, S3); /* Saturday */
++ok(close(sat.H, 9.6667, 0.001) && close(sat.L, 9.6667 * 246.06 * 0.1, 0.05),
++  "weekend bonus from PHV: L=" + sat.L.toFixed(2));
++ok(close(34.5 * 246.06 * 0.1, 849, 0.5) && close(17 * 246.06 * 0.1, 418, 0.5),
++  "payslip lines: víkend 34.5h->849, noční 17h->418");
++
++/* holiday supplement = 100 % PHV — svátek 19.34 h -> 4 759 Kč */
++ok(close(19.34 * 246.06, 4759, 1), "holiday: 19.34h x PHV 246.06 -> ~4759");
++
++/* --- 3. Overtime bonus from PHV (legal min § 114) --- */
++const ot = day(2026, 7, 7, "den", { overtime: true }, S3);
++ok(close(ot.M, 9.6667 * 246.06 * 0.25, 0.05), "overtime 25% of PHV: M=" + ot.M.toFixed(2));
++
++/* --- 4. Pulden: half shift + half paid vacation (payslip 05/2026) --- */
++const pul = day(2026, 5, 12, "pulden", {}, Object.assign({}, S, { phvRate: 218 }));
++ok(close(pul.F, 4.8333, 0.001), "pulden F=4.8333 (half of 9.6667)");
++ok(close(pul.J, 4.8333 * 218, 0.05) && close(pul.O, 4.8333 * 218, 0.05),
++  "pulden J=O=1053.66 at 218 (payslip: dovolená 4.83h -> 1053)");
++const pulQ3 = day(2026, 7, 8, "pulden", {}, S3);
++ok(close(pulQ3.E, 4.8333 * 218 + 4.8333 * 246.06, 0.1),
++  "pulden Q3: E=" + pulQ3.E.toFixed(2) + " (base half + PHV half)");
++
++/* --- 5. Nemoc: 60 % of reduced PHV, insured-exempt --- */
++ok(close(Payroll.reducePhv(350), 295.734, 0.001), "reducePhv(350)=295.734 (official example)");
++ok(close(Payroll.reducePhv(246.06), 221.454, 0.001), "reducePhv(246.06)=221.454 (all in band 1, x0.9)");
++const nem = day(2026, 7, 9, "nemoc", {}, S3);
++ok(nem.J === 0 && nem.K === 0 && nem.L === 0 && nem.M === 0 && nem.N === 0 && nem.P === 0,
++  "nemoc: no base pay, no supplements");
++ok(close(nem.O, 0.6 * 221.454 * 9.6667, 0.1) && nem.exempt === nem.O && nem.E === nem.O,
++  "nemoc O=E=exempt=" + nem.O.toFixed(2));
++ok(Payroll.calcNetto(nem.O, 0) === Math.max(0, nem.O - Math.max(0, Payroll.round0(Math.ceil(nem.O / 100) * 100 * 0.15) - 2570)),
++  "nemoc compensation: taxed, zero SP/ZP");
++
++/* --- 6. withMonthlyBonus --- */
++const raw = [day(2026, 7, 6, "den", {}, S3), day(2026, 7, 7, "den", {}, S3), day(2026, 7, 8, "volno", {}, S3)];
++const bon = Payroll.withMonthlyBonus(raw, 908);
++ok(bon !== raw && close(raw[0].P, 0, 0.001), "withMonthlyBonus does not mutate input");
++ok(close(bon[0].P, 454, 0.01) && close(bon[1].P, 454, 0.01) && bon[2].P === 0,
++  "908 split over 2 worked days only");
++ok(Payroll.withMonthlyBonus(raw, 0) === raw, "bonus 0 -> identity");
++
++/* --- 7. i18n key parity across all 5 locales --- */
++const langs = Object.keys(LOCALES);
++const enKeys = Object.keys(LOCALES.en).sort().join(",");
++langs.forEach(function (l) {
++  ok(Object.keys(LOCALES[l]).sort().join(",") === enKeys, "locale " + l + " key parity with en");
++});
++
++console.log("\n" + pass + " passed, " + fail + " failed");
++process.exit(fail ? 1 : 0);
+-- 
+2.39.5
+
+
+From 6c07c643b6afac307f354338e888e746111d456d Mon Sep 17 00:00:00 2001
+From: Kimi <kimi@dev>
+Date: Mon, 14 Sep 2026 22:40:58 +0800
+Subject: [PATCH 4/4] Pracovni odmena: restore 10% of worked-shift base as
+ default formula (June exact), fixed monthly field now REPLACES the formula
+
+---
+ js/payroll.js       | 25 ++++++++++++++-----------
+ test-calibration.js | 17 +++++++++++------
+ 2 files changed, 25 insertions(+), 17 deletions(-)
+
+diff --git a/js/payroll.js b/js/payroll.js
+index 48c7ee7..1bc21f6 100644
+--- a/js/payroll.js
++++ b/js/payroll.js
+@@ -22,10 +22,12 @@
+   "use strict";
+ 
+   /** Company-wide defaults (from the workbook, list "Nastaveni"; rates verified
+-   *  against real Adecco/Amazon BRQ payslips 05–07/2026).
+-   *  attendanceBonusPct defaults to 0: payslips show no percentage-of-base bonus
+-   *  anymore — "Pracovní odměna" is a variable performance amount, entered per
+-   *  month via bonusMonthKc. */
++   *  against real Adecco/Amazon BRQ payslips 05–08/2026).
++   *  attendanceBonusPct = 10 % of the base pay of worked shifts — reproduces the
++   *  full-month "Pracovní odměna" exactly (06/2026: 218 × 174 h × 10 % = 3 793).
++   *  Real payouts are reduced by absences in ways that do NOT follow hour math
++   *  (05: 908, 07: 2 149), so for exact reconciliation enter the payslip amount
++   *  into bonusMonthKc — it then REPLACES the percentage formula. */
+   const DEFAULT_SETTINGS = {
+     baseRate: 218,
+     phvRate: 246.06,
+@@ -39,7 +41,7 @@
+     weekendBonusPct: 0.10,
+     overtimeBonusPct: 0.25,
+     holidayBonusMult: 1,
+-    attendanceBonusPct: 0,
++    attendanceBonusPct: 0.10,
+     bonusMonthKc: 0
+   };
+ 
+@@ -311,10 +313,11 @@
+   }
+ 
+   /**
+-   * Distribute a fixed monthly bonus ("Pracovní odměna" — a variable performance
+-   * amount on Adecco payslips: 908 / 3 793 / 2 149 Kč, no derivable formula)
+-   * evenly over days with J > 0 (actually worked shifts). Returns a NEW array
+-   * with adjusted P and E; the input is never mutated. bonusKc <= 0 -> as-is.
++   * Fixed monthly bonus override ("Pracovní odměna" from the payslip). When
++   * bonusKc > 0 it REPLACES the percentage attendance formula: the amount is
++   * split evenly over days with J > 0 (actually worked shifts), P is set to the
++   * share (not added on top) and E adjusted accordingly. Returns a NEW array;
++   * the input is never mutated. bonusKc <= 0 -> percentage formula stays as-is.
+    */
+   function withMonthlyBonus(results, bonusKc) {
+     if (!(bonusKc > 0)) return results;
+@@ -324,8 +327,8 @@
+     return results.map(function (r) {
+       if (r.J <= 0) return r;
+       const copy = Object.assign({}, r);
+-      copy.P += share;
+-      copy.E += share;
++      copy.E += share - copy.P; /* swap formula bonus for the fixed share */
++      copy.P = share;
+       return copy;
+     });
+   }
+diff --git a/test-calibration.js b/test-calibration.js
+index b54eb10..1b42f69 100644
+--- a/test-calibration.js
++++ b/test-calibration.js
+@@ -48,8 +48,8 @@ ok(close(pul.F, 4.8333, 0.001), "pulden F=4.8333 (half of 9.6667)");
+ ok(close(pul.J, 4.8333 * 218, 0.05) && close(pul.O, 4.8333 * 218, 0.05),
+   "pulden J=O=1053.66 at 218 (payslip: dovolená 4.83h -> 1053)");
+ const pulQ3 = day(2026, 7, 8, "pulden", {}, S3);
+-ok(close(pulQ3.E, 4.8333 * 218 + 4.8333 * 246.06, 0.1),
+-  "pulden Q3: E=" + pulQ3.E.toFixed(2) + " (base half + PHV half)");
++ok(close(pulQ3.E, 4.8333 * 218 * 1.1 + 4.8333 * 246.06, 0.1),
++  "pulden Q3: E=" + pulQ3.E.toFixed(2) + " (base half x1.1 attendance + PHV half)");
+ 
+ /* --- 5. Nemoc: 60 % of reduced PHV, insured-exempt --- */
+ ok(close(Payroll.reducePhv(350), 295.734, 0.001), "reducePhv(350)=295.734 (official example)");
+@@ -62,13 +62,18 @@ ok(close(nem.O, 0.6 * 221.454 * 9.6667, 0.1) && nem.exempt === nem.O && nem.E ==
+ ok(Payroll.calcNetto(nem.O, 0) === Math.max(0, nem.O - Math.max(0, Payroll.round0(Math.ceil(nem.O / 100) * 100 * 0.15) - 2570)),
+   "nemoc compensation: taxed, zero SP/ZP");
+ 
+-/* --- 6. withMonthlyBonus --- */
++/* --- 6. attendance bonus: 10 % formula + fixed override --- */
++const den10 = day(2026, 7, 6, "den", {}, S3); /* default attendanceBonusPct = 10 % */
++ok(close(den10.P, 2107.33 * 0.1, 0.05), "10% formula: den P=" + den10.P.toFixed(2) + " (J x 0.10)");
++ok(close(0.1 * 218 * 174.01, 3793, 0.5), "June odměna = 218 x fond 174.01 h x 10% = 3793 (exact)");
++
+ const raw = [day(2026, 7, 6, "den", {}, S3), day(2026, 7, 7, "den", {}, S3), day(2026, 7, 8, "volno", {}, S3)];
+ const bon = Payroll.withMonthlyBonus(raw, 908);
+-ok(bon !== raw && close(raw[0].P, 0, 0.001), "withMonthlyBonus does not mutate input");
++ok(bon !== raw && close(raw[0].P, 210.73, 0.05), "withMonthlyBonus does not mutate input");
+ ok(close(bon[0].P, 454, 0.01) && close(bon[1].P, 454, 0.01) && bon[2].P === 0,
+-  "908 split over 2 worked days only");
+-ok(Payroll.withMonthlyBonus(raw, 0) === raw, "bonus 0 -> identity");
++  "fixed 908 REPLACES formula, split over 2 worked days only");
++ok(close(bon[0].E, raw[0].E - raw[0].P + 454, 0.01), "E swapped: formula bonus out, fixed share in");
++ok(Payroll.withMonthlyBonus(raw, 0) === raw, "bonus 0 -> formula stays");
+ 
+ /* --- 7. i18n key parity across all 5 locales --- */
+ const langs = Object.keys(LOCALES);
+-- 
+2.39.5
+
