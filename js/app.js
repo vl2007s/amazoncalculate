@@ -194,7 +194,7 @@
    * Release announcements: bump WHATS_NEW_VERSION and update the "whatsNew"
    * locale strings — everyone who dismissed the previous banner sees the new
    * one exactly once (dismissal is remembered in localStorage). */
-  const WHATS_NEW_VERSION = "2026-09-15-2";
+  const WHATS_NEW_VERSION = "2026-09-15-3";
   const LS_WHATSNEW = "hpp_kalkulacka_whatsnew_v1";
   (function initWhatsNew() {
     const modal = document.getElementById("whatsNewModal");
@@ -443,7 +443,8 @@
         attLine.textContent = I18n.t("attShare") + ": " + Math.round(ai.share * 100) + " % (" +
           I18n.fmtNum(ai.counted) + " / " + I18n.fmtNum(ai.fond) + " " + I18n.t("hoursUnit") + ") → " +
           I18n.t("attBonus") + " " +
-          (state.settings.bonusVoid ? "0 % — " + I18n.t("attVoid") : Math.round(ai.pct * 100) + " %");
+          (state.settings.bonusVoid ? "0 % — " + I18n.t("attVoid")
+            : Math.round(ai.pct * 100) + " % ≈ " + I18n.fmtMoney(ai.amount));
       } else {
         attLine.hidden = true;
       }

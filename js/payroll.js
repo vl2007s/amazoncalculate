@@ -235,26 +235,28 @@
       };
     }
 
-    /* lateness (pozdní příchod): unpaid hours off the shift — reduces the time
-     * wage AND the counted attendance hours, the planned fond stays whole */
+    /* lateness (pozdní příchod): unpaid hours off the shift — cuts ONLY the
+     * time wage and the counted attendance hours. Supplements (noční/víkend)
+     * are paid for the FULL shift anyway — payslip 08/2026: lateness 1,39 h
+     * cut the časová mzda to 162,95 h, but noční stayed the full 68 h. */
     const late = Math.max(0, Math.min(+opts.lateHours || 0, s.dayPaidHours));
 
-    let F;
-    if (isVolno) F = 0;
-    else if (isDen) F = s.dayPaidHours - late;
-    else if (isPul) F = Math.max(0, s.dayPaidHours / 2 - late); /* poludnevka: half a day shift worked… */
-    else if (isDov || isSva) F = s.nightPaidHours; // dovolena, svatek — no lateness
-    else F = s.nightPaidHours - late; // noc — matches the original formula
+    let Ffull;
+    if (isVolno) Ffull = 0;
+    else if (isDen || isDov || isSva) Ffull = s.dayPaidHours;
+    else if (isPul) Ffull = s.dayPaidHours / 2; /* poludnevka: half a day shift worked… */
+    else Ffull = s.nightPaidHours; // noc
+    const F = Math.max(0, Ffull - ((isVolno || isDov || isSva) ? 0 : late));
 
     let G = 0;
-    if (isNoc) G = round4((s.nightDayPartNight + s.nightEndPartNight) * F / s.nightPaidHours);
+    if (isNoc) G = round4((s.nightDayPartNight + s.nightEndPartNight) * Ffull / s.nightPaidHours);
 
     /* weekend hours account for night shifts crossing midnight into a weekend day */
     let H = 0;
     if (isVolno) H = 0;
-    else if (isDen || isPul) H = isWeekend(date) ? F : 0;
-    else if (isNoc) H = ((isWeekend(date) ? s.nightDayPart : 0) + (isWeekend(nextDate) ? s.nightEndPart : 0)) * F / s.nightPaidHours;
-    else H = isWeekend(date) ? F : 0; // dovolena, svatek
+    else if (isDen || isPul) H = isWeekend(date) ? Ffull : 0;
+    else if (isNoc) H = ((isWeekend(date) ? s.nightDayPart : 0) + (isWeekend(nextDate) ? s.nightEndPart : 0)) * Ffull / s.nightPaidHours;
+    else H = isWeekend(date) ? Ffull : 0; // dovolena, svatek
 
     /* a real shift counts as a holiday shift if any of its paid hours fall on the
      * holiday — for nights that's the start day OR the spillover end day */
@@ -265,10 +267,10 @@
      * no overtime, no attendance bonus (zákoník práce § 115). A poludnevka keeps
      * its second half — the paid vacation hours are unaffected by the holiday. */
     if (isHolidayShift && !holidayWork) {
-      const J = F * s.phvRate;
-      const O = isPul ? F * s.phvRate : 0;
+      const J = Ffull * s.phvRate;
+      const O = isPul ? Ffull * s.phvRate : 0;
       return {
-        F: F, G: 0, H: 0, I: "NÁH", J: J, K: 0, L: 0, M: 0, N: 0, O: O, P: 0, E: J + O,
+        F: Ffull, G: 0, H: 0, I: "NÁH", J: J, K: 0, L: 0, M: 0, N: 0, O: O, P: 0, E: J + O,
         nem: 0, exempt: 0, isWeekend: isWeekend(date), holidayName: holidayMap.get(dk) || null,
         isHolidayShift: true, holidayWork: false
       };
@@ -289,21 +291,21 @@
     const L = H * s.phvRate * s.weekendBonusPct;
 
     let M = 0;
-    if (overtime && (isDen || isNoc)) M = F * s.phvRate * s.overtimeBonusPct;
+    if (overtime && (isDen || isNoc)) M = Ffull * s.phvRate * s.overtimeBonusPct;
 
     /* holiday supplement (worked case): only for hours actually on the holiday —
      * a night shift gets the bonus just for the holiday portion. Legacy "svatek"
      * rows keep the original split formula. */
     let N = 0;
     if (isSva) {
-      const partToday = onHoliday ? s.nightDayPart * F / s.nightPaidHours : 0;
-      const partNext = nextOnHoliday ? s.nightEndPart * F / s.nightPaidHours : 0;
+      const partToday = onHoliday ? s.nightDayPart * Ffull / s.nightPaidHours : 0;
+      const partNext = nextOnHoliday ? s.nightEndPart * Ffull / s.nightPaidHours : 0;
       N = s.phvRate * s.holidayBonusMult * (partToday + partNext);
     } else if ((isDen || isPul) && onHoliday) {
-      N = s.phvRate * s.holidayBonusMult * F;
+      N = s.phvRate * s.holidayBonusMult * Ffull;
     } else if (isNoc && (onHoliday || nextOnHoliday)) {
-      const partToday = onHoliday ? s.nightDayPart * F / s.nightPaidHours : 0;
-      const partNext = nextOnHoliday ? s.nightEndPart * F / s.nightPaidHours : 0;
+      const partToday = onHoliday ? s.nightDayPart * Ffull / s.nightPaidHours : 0;
+      const partNext = nextOnHoliday ? s.nightEndPart * Ffull / s.nightPaidHours : 0;
       N = s.phvRate * s.holidayBonusMult * (partToday + partNext);
     }
 
@@ -373,27 +375,28 @@
    *  pattern); 0/null -> fall back to the painted scheduled days */
   function attendanceInfo(results, shifts, s, fondDays) {
     const shiftH = s.dayPaidHours;
-    let counted = 0, paintedFond = 0, deduct = 0;
+    let counted = 0, paintedFond = 0;
     results.forEach(function (r, i) {
-      const sh = shifts[i] || {};
-      const t = sh.type || "volno";
+      const t = shifts[i] ? shifts[i].type : "volno";
       if (t === "den" || t === "noc") counted += r.F; /* net of lateness */
       else if (t === "pulden") counted += r.F + shiftH / 2; /* worked half + vacation half */
       else if (t === "dovolena" || t === "svatek") counted += shiftH;
-      else if (t === "prek") { counted += shiftH / 2; deduct += shiftH / 2; } /* paid half counts, unpaid half leaves the fond */
-      /* nemoc: fond keeps the hours, the share gets nothing */
-      /* lateness and the unpaid doctor half are subtracted from the PLANNED
-       * fond (slide + payslip 08/2026: fond 174 − 6,22, counted 162,95 + 4,83
-       * = 167,78/167,78 = 100 % -> 10 % odměna) */
-      if (t === "den" || t === "noc" || t === "pulden") {
-        deduct += Math.max(0, Math.min(+sh.lateHours || 0, shiftH));
-      }
+      else if (t === "prek") counted += shiftH / 2; /* paid half of the doctor day counts */
+      /* nemoc: stays in the fond but is never counted (unplanned absence) */
       if (t !== "volno") paintedFond += shiftH;
     });
-    const fond = Math.max(0, (fondDays > 0 ? fondDays * shiftH : paintedFond) - deduct);
+    /* lateness cuts ONLY the actual hours — the planned fond stays whole
+     * (user's rule; payslip 07/2026 proof: lateness 2,75 h, share 98,3 %) */
+    const fond = fondDays > 0 ? fondDays * shiftH : paintedFond;
     const share = fond > 0 ? counted / fond : 1;
-    return { fond: fond, counted: counted, share: share, pct: bonusTier(share) };
+    const pct = bonusTier(share);
+    /* bonus base = PLANNED fond hours x base rate — payslip proofs:
+     * 06/2026: 174,01 h x 218 x 10 % = 3 793 (exact)
+     * 07/2026: 164,34 h x 218 x 6 %  = 2 149 (exact) */
+    const amount = Math.floor(pct * fond * s.baseRate);
+    return { fond: fond, counted: counted, share: share, pct: pct, amount: amount };
   }
+
 
 
   /** Applies the tier model: rescales the flat per-day formula P to the tier
@@ -410,17 +413,22 @@
     }
     if (s.bonusMonthKc > 0) return withMonthlyBonus(results, s.bonusMonthKc);
     const info = attendanceInfo(results, shifts, s, fondDays);
-    const base = s.attendanceBonusPct > 0 ? s.attendanceBonusPct : 0.10;
-    if (Math.abs(info.pct - base) < 1e-9) return results;
+    /* the per-day P (flat attendanceBonusPct of the day's time wage) is just a
+     * display distribution — the month total is the tier amount on the FOND
+     * base, so rescale the per-day values to sum exactly to info.amount */
+    const sumP = results.reduce(function (a, r) { return a + r.P; }, 0);
+    if (sumP <= 0) return results;
+    const k = info.amount / sumP;
+    if (Math.abs(k - 1) < 1e-9) return results;
     return results.map(function (r) {
-      if (!(r.P > 0)) return r;
-      const copy = Object.assign({}, r);
-      const newP = (r.P / base) * info.pct;
-      copy.E += newP - copy.P;
-      copy.P = newP;
-      return copy;
+      if (!r.P) return r;
+      const n = Object.assign({}, r);
+      n.P = round4(r.P * k);
+      n.E = r.E - r.P + n.P;
+      return n;
     });
   }
+
 
   /* ============ Roster pattern (4 weeks day / 4 weeks night) ============
    * Detected from how the user paints the calendar — no configuration needed.
@@ -428,7 +436,11 @@
    * days + 1 week of nights means 3 more night weeks follow, then 4 day weeks.
    * Blocks alternate every 4 weeks in both directions, so any past or future
    * month can be predicted (used for autofill and the approximate PHV). */
-  function mondayOf(d) { return addDays(d, -((d.getDay() + 6) % 7)); }
+  /* Amazon week starts on SUNDAY, not Monday — rotation blocks align to
+   * Sun-Sat weeks (payslip 07/2026 proof: nights ran Sun 26.-Wed 29.7, so
+   * Sun 26.7 opened a new block week; a Monday-based week glued it to the
+   * previous day block and mispredicted it as a day shift) */
+  function weekStartOf(d) { return addDays(d, -d.getDay()); }
 
   /* The roster is learned from a FULLY painted month (>= 7 scheduled days over
    * >= 3 distinct weeks). The most recent complete month is the template — if
@@ -437,7 +449,7 @@
    * one-off shift swaps never distort the roster. Until a complete month
    * exists there is no pattern — no guessing from scraps. */
   function detectPattern(monthsData) {
-    const weeks = {}; /* monday dateKey -> {mon, den, noc} votes */
+    const weeks = {}; /* sunday dateKey -> {mon, den, noc} votes */
     let roster = null, rosterEnd = 0; /* weekday template + its month */
     monthsData.forEach(function (md) {
       const wdCount = [0, 0, 0, 0, 0, 0, 0];
@@ -449,7 +461,7 @@
         const d = new Date(md.year, md.month, i + 1);
         wdCount[d.getDay()]++;
         painted++;
-        const mon = mondayOf(d);
+        const mon = weekStartOf(d);
         weekSet[dateKey(mon)] = true;
         const k = dateKey(mon);
         if (!weeks[k]) weeks[k] = { mon: mon, den: 0, noc: 0 };
@@ -469,7 +481,7 @@
     if (!keys.length || !roster) return null;
     const weekdays = roster;
     /* anchor = most recent painted week with type votes; walk back while the
-     * dominant type holds (consecutive Mondays only — a gap week ends it) */
+     * dominant type holds (consecutive Sunday-weeks only — a gap week ends it) */
     let anchorType = null, anchorMon = null, blockWeeks = 0;
     for (let k = keys.length - 1; k >= 0 && blockWeeks < 4; k--) {
       const wk = weeks[keys[k]];
@@ -490,7 +502,7 @@
   /** Predicted shift type for a date under the detected roster. */
   function predictType(date, pattern) {
     if (!pattern || pattern.weekdays.indexOf(date.getDay()) === -1) return "volno";
-    const weeksDiff = Math.round((mondayOf(date) - pattern.anchorMonday) / (7 * 864e5));
+    const weeksDiff = Math.round((weekStartOf(date) - pattern.anchorMonday) / (7 * 864e5));
     const blockIdx = Math.floor((pattern.blockWeeks - 1 + weeksDiff) / 4);
     const even = ((blockIdx % 2) + 2) % 2 === 0;
     return even ? pattern.type : (pattern.type === "den" ? "noc" : "den");

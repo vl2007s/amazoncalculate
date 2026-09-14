@@ -122,8 +122,8 @@ const lateDen = day(2026, 7, 6, "den", { lateHours: 2 }, S3);
 ok(close(lateDen.F, 7.6667, 0.001) && close(lateDen.J, 7.6667 * 218, 0.5),
   "late 2h: F=7.67, J=" + lateDen.J.toFixed(2) + " (7.67h x 218)");
 const lateNoc = day(2026, 7, 7, "noc", { lateHours: 1.5 }, S3);
-ok(close(lateNoc.F, 9.6667 - 1.5, 0.001) && lateNoc.K < day(2026, 7, 7, "noc", {}, S3).K,
-  "late night: hours and night supplement scale down");
+ok(close(lateNoc.F, 9.6667 - 1.5, 0.001) && close(lateNoc.K, day(2026, 7, 7, "noc", {}, S3).K, 0.01),
+  "late night: časová cut, noční paid in full (payslip 08/2026: 68 h despite lateness)");
 ok(close(day(2026, 7, 8, "pulden", { lateHours: 6 }, S3).F, 0, 0.001),
   "pulden late 6h: worked half fully eaten (clamped at 0)");
 
@@ -147,7 +147,7 @@ ok(close(ai8.counted, 154.66, 0.05), "counted 154.66 h (sick excluded) — got "
 ok(ai8.pct === 0.02, "share 88.9% -> tier 2%");
 const res8tier = Payroll.withAttendanceBonus(res8raw, sh8, SC, 18);
 const P8 = res8tier.reduce(function (a, r) { return a + r.P; }, 0);
-ok(close(P8, 32663.67 * 0.02, 1.0), "tier 2% of worked time wage = " + P8.toFixed(0) + " Kč (payslip 674, Adecco specifics aside)");
+ok(close(P8, Math.floor(0.02 * 174 * 218), 1.5), "tier 2% of PLANNED fond base = " + P8.toFixed(0) + " Kč (fond 174 h x 218 x 2 %)");
 
 /* perfect month -> 10 %, extra overtime day outside the roster saves the tier */
 const perfect = [day(2026, 7, 6, "den", {}, S3), day(2026, 7, 7, "den", {}, S3)];
@@ -158,21 +158,22 @@ const shE = shP.concat([{ type: "den", overtime: true }]);
 ok(Payroll.attendanceInfo(withExtra, shE, S3, 2).share > 1, "extra shift beyond fond -> share > 100% (bonus saved)");
 
 /* --- 11. Roster pattern: detect from painted weeks, rotate 4/4 --- */
-/* user painted 2 weeks of Sun-Wed day shifts (weeks of 2026-08-02 and 08-09) */
+/* Amazon weeks start on SUNDAY. User painted 3 weeks of Sun-Wed day shifts
+ * (weeks of Sun 2.8, 9.8, 16.8.2026) */
 const md = [{ year: 2026, month: 7, shifts: Array.from({ length: 31 }, function () { return { type: "volno" }; }) }];
-[2, 3, 4, 5, 9, 10, 11, 12].forEach(function (d) { md[0].shifts[d - 1] = { type: "den" }; });
+[2, 3, 4, 5, 9, 10, 11, 12, 16, 17, 18, 19].forEach(function (d) { md[0].shifts[d - 1] = { type: "den" }; });
 const pat = Payroll.detectPattern(md);
 ok(pat && pat.weekdays.join("") === "0123", "pattern weekdays = Sun..Wed — got " + (pat && pat.weekdays));
-/* the painted span covers 3 calendar weeks (Sun 2.8 belongs to the week of
- * Mon 27.7) -> the block is already 3 weeks in */
+/* 3 consecutive painted day weeks -> the day block is 3 weeks in */
 ok(pat && pat.type === "den" && pat.blockWeeks === 3, "current block: day, 3 weeks in — got " + (pat && pat.type + "/" + pat.blockWeeks));
-ok(Payroll.predictType(new Date(2026, 7, 19), pat) === "den", "week 4 of block -> still day");
-ok(Payroll.predictType(new Date(2026, 7, 26), pat) === "noc", "week 5 -> rotation to nights");
+ok(Payroll.predictType(new Date(2026, 7, 26), pat) === "den", "week of Sun 23.8 -> 4th week of block, still day");
+ok(Payroll.predictType(new Date(2026, 7, 30), pat) === "noc", "week of Sun 30.8 -> rotation to nights");
 ok(Payroll.predictType(new Date(2026, 8, 2), pat) === "noc", "night block continues");
-ok(Payroll.predictType(new Date(2026, 8, 23), pat) === "den", "week of 21.9 -> back to days (4/4)");
-ok(Payroll.predictType(new Date(2026, 7, 22), pat) === "volno", "Friday not in pattern -> volno");
-ok(Payroll.predictType(new Date(2026, 6, 29), pat) === "den", "2 weeks before anchor -> day (same block backwards)");
-ok(Payroll.predictType(new Date(2026, 6, 22), pat) === "noc", "3 weeks before anchor -> nights (previous block)");
+ok(Payroll.predictType(new Date(2026, 8, 23), pat) === "noc", "week of Sun 20.9 -> still nights");
+ok(Payroll.predictType(new Date(2026, 8, 30), pat) === "den", "week of Sun 27.9 -> back to days (4/4)");
+ok(Payroll.predictType(new Date(2026, 7, 21), pat) === "volno", "Friday not in pattern -> volno");
+ok(Payroll.predictType(new Date(2026, 6, 29), pat) === "noc", "week of Sun 26.7 -> previous block = nights (payslip: nights 26.-29.7!)");
+ok(Payroll.predictType(new Date(2026, 6, 1), pat) === "den", "week of Sun 28.6 -> two blocks back = day");
 ok(Payroll.countFondDays(2026, 7, [0, 1, 2, 3]) === 18, "Aug 2026 Sun-Wed = 18 fond days (payslip: 174 h = 18 x 9.67)");
 
 
@@ -291,19 +292,52 @@ ok(patMix && patMix.weekdays.indexOf(5) === -1 && patMix.weekdays.length === 4,
     "prek: half shift at full PHV inside gross — got " + prek.O);
 
   const ai = Payroll.attendanceInfo(rawV, shV, SV, 18);
-  ok(Math.abs(ai.fond - 167.78) < 0.1 && Math.abs(ai.counted - 167.78) < 0.1,
-    "attendance: fond 174-6,22 = counted 162,95+4,83 — got " + ai.counted.toFixed(2) + "/" + ai.fond.toFixed(2));
-  ok(ai.pct === 0.10, "share 100 % -> full 10 % odměna (payslip) — got " + ai.pct);
+  ok(Math.abs(ai.fond - 174) < 0.1 && Math.abs(ai.counted - 167.78) < 0.1,
+    "attendance: fond untouched 174, counted 162,95+4,83 — got " + ai.counted.toFixed(2) + "/" + ai.fond.toFixed(2));
+  ok(ai.pct === 0.06, "share 96,4 % -> tier 6 % — got " + ai.pct);
 
   const resV = Payroll.withAttendanceBonus(rawV, shV, SV, 18);
   const gross = resV.reduce(function (a, r) { return a + r.E; }, 0);
   const bonus = resV.reduce(function (a, r) { return a + r.P; }, 0);
-  /* NB: payslip víkend = 26,17 h while the painted roster has 35,83 weekend h —
-   * the difference is exactly ONE Sunday day shift (9,67 h ≈ 238 Kč), i.e. one
-   * of 23./30.8 was in reality a weekday shift. Model follows the painted data. */
-  ok(Math.abs(gross - 42551) < 260, "gross ~ 42 551 (minus the Sunday-shift anomaly) — got " + Math.round(gross));
-  ok(Math.abs(bonus - 3523) < 40, "odměna ~ 3 523 — got " + Math.round(bonus));
-  ok(Math.abs(Payroll.calcNetto(gross) - 33794) < 260, "netto ~ 33 794 — got " + Math.round(Payroll.calcNetto(gross)));
+  /* NB: the 08/2026 payslip itself is anomalous vs the fond-base rule proven
+   * exactly on 06/2026 (3 793) and 07/2026 (2 149): its odměna 3 523 matches
+   * NO tier on the planned base (10 % would be 3 793, 6 % is 2 276) and its
+   * víkend 26,17 h is one Sunday day shift short of the painted 35,83 h.
+   * Model follows the verified rule + painted data. */
+  ok(Math.abs(bonus - Math.floor(0.06 * 174 * 218)) < 1.5, "odměna = 6 % x fond 174 h x 218 — got " + Math.round(bonus));
+  ok(Math.abs(gross - 41541) < 5, "gross (model) ~ 41 541 — got " + Math.round(gross));
+  ok(Math.abs(Payroll.calcNetto(gross) - 33051) < 5, "netto (model) ~ 33 051 — got " + Math.round(Payroll.calcNetto(gross)));
+}
+
+
+/* 18. Vladyslav 07/2026 — EXACT payslip reproduction with the fond-base rule:
+ * časová 33 119 (151,92 h), víkend 34,5 h -> 849, noční 17 h -> 418,
+ * svátek 19,34 h -> 4 759, dovolená 9,67 h -> 2 379, odměna 2 149
+ * (= 6 % x fond 164,34 h x 218 — exact), hrubá 43 673, čistá 34 621.
+ * Lateness 2,75 h cuts only the actual hours, the fond stays whole. */
+{
+  const SJ = Object.assign({}, S, { baseRate: 218, phvRate: 246.06 });
+  const dimJ = Payroll.daysInMonth(2026, 6);
+  const shJ = []; for (let i = 0; i < dimJ; i++) shJ.push({ type: "volno", overtime: false, holidayWork: true, lateHours: 0 });
+  [1, 5, 6, 7, 8, 12, 13, 14, 15, 19, 20, 21, 22].forEach(function (d) { shJ[d - 1].type = "den"; });
+  [26, 27, 28].forEach(function (d) { shJ[d - 1].type = "noc"; });
+  shJ[28].type = "dovolena";       /* 29.7 vacation 9,67 h */
+  shJ[21].lateHours = 2.75;        /* 22.7 lateness — Neodpracované 2,75 h */
+  const rawJ = shJ.map(function (s2, i) { return Payroll.calcDay(new Date(2026, 6, i + 1), s2.type, s2, SJ, hol); });
+  const aiJ = Payroll.attendanceInfo(rawJ, shJ, SJ, 17);
+  ok(Math.abs(aiJ.share - 161.58 / 164.33) < 0.001 && aiJ.pct === 0.06,
+    "07/2026 share 98,3 % -> tier 6 % — got " + (aiJ.share * 100).toFixed(1) + " %");
+  const resJ = Payroll.withAttendanceBonus(rawJ, shJ, SJ, 17);
+  const t = { J: 0, K: 0, L: 0, N: 0, O: 0, P: 0, E: 0 };
+  resJ.forEach(function (r) { Object.keys(t).forEach(function (k) { t[k] += r[k]; }); });
+  ok(Math.abs(t.J - 33119) < 2, "časová 33 119 — got " + Math.round(t.J));
+  ok(Math.abs(t.L - 849) < 2, "víkend 849 (34,5 h) — got " + Math.round(t.L));
+  ok(Math.abs(t.K - 418) < 2, "noční 418 (17 h) — got " + Math.round(t.K));
+  ok(Math.abs(t.N - 4759) < 2, "svátek 4 759 (19,34 h) — got " + Math.round(t.N));
+  ok(Math.abs(t.O - 2379) < 2, "dovolená 2 379 (9,67 h) — got " + Math.round(t.O));
+  ok(Math.abs(t.P - 2149) < 1.5, "odměna 2 149 EXACT (fond 164,34 x 218 x 6 %) — got " + t.P.toFixed(2));
+  ok(Math.abs(t.E - 43673) < 5, "hrubá 43 673 — got " + t.E.toFixed(1));
+  ok(Math.abs(Payroll.calcNetto(t.E) - 34621) < 5, "čistá 34 621 — got " + Payroll.calcNetto(t.E).toFixed(1));
 }
 
 console.log("\n" + pass + " passed, " + fail + " failed");
