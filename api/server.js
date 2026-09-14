@@ -197,7 +197,10 @@ function handleCalculate(req, res) {
       return Payroll.calcDay(new Date(year, month - 1, i + 1), shift.type, shift, settings, holidayMap);
     });
     /* fixed monthly bonus (Pracovní odměna) layered over the raw per-day math */
-    const final = Payroll.withMonthlyBonus(results, settings.bonusMonthKc);
+    /* attendance tiers with the painted-days fond (the roster pattern lives in
+     * the browser's localStorage — the API can't see it); a fixed monthly
+     * amount still overrides the tiers */
+    const final = Payroll.withAttendanceBonus(results, shifts, settings, 0);
 
     const days = final.map(function (r, i) {
       const shift = shifts[i];
@@ -213,13 +216,15 @@ function handleCalculate(req, res) {
         /* column letters match the original workbook sheet "Vypocet" */
         F: r.F, G: r.G, H: r.H, I: r.I, J: r.J, K: r.K, L: r.L,
         M: r.M, N: r.N, O: r.O, P: r.P, E: Math.round(r.E * 100) / 100,
+        nem: Math.round((r.nem || 0) * 100) / 100,
         exempt: Math.round((r.exempt || 0) * 100) / 100
       };
     });
 
     const totals = Payroll.calcTotals(days);
-    /* sick-pay compensation is taxed but not insured */
-    const netEstimate = Payroll.calcNetto(totals.E, totals.E - totals.exempt);
+    /* sick-pay compensation (DPN náhrada) is paid outside the gross — not taxed,
+     * not insured, added straight to the payout (payslip 08/2026 verified) */
+    const netEstimate = Payroll.calcNetto(totals.E) + totals.nem;
 
     sendJson(res, 200, {
       year: year,

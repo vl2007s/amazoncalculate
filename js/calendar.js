@@ -162,6 +162,22 @@
     ot.appendChild(document.createTextNode(I18n.t("overtime")));
     popover.appendChild(ot);
 
+    /* lateness (pozdní příchod) — unpaid hours that also count against the
+     * attendance bonus; only meaningful for real shifts */
+    if (entry.type === "den" || entry.type === "noc" || entry.type === "pulden") {
+      const lr = el("label", "pop-late");
+      lr.appendChild(document.createTextNode(I18n.t("lateLabel")));
+      const li = document.createElement("input");
+      li.type = "number";
+      li.min = "0"; li.max = "9.67"; li.step = "0.5";
+      li.value = entry.lateHours || 0;
+      li.addEventListener("change", function () {
+        ctx.onChange(dayIdx, { lateHours: parseFloat(li.value) || 0 });
+      });
+      lr.appendChild(li);
+      popover.appendChild(lr);
+    }
+
     /* holiday choice — only shown when the shift actually touches a holiday */
     if (res.isHolidayShift) {
       popover.appendChild(el("div", "pop-sep"));
@@ -218,6 +234,7 @@
     const isNahr = !!res.isHolidayShift && entry.holidayWork === false;
 
     cell.className = "cal-day t-" + entry.type +
+      (entry.predicted ? " predicted" : "") +
       (Payroll.isWeekend(date) ? " is-weekend" : "") +
       (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate() ? " is-today" : "") +
       (isNahr ? " nahrada" : "");
@@ -230,7 +247,9 @@
     cell.appendChild(el("span", "num", String(day + 1)));
     cell.appendChild(el("span", "chip", isNahr ? I18n.t("ts_nahr") : I18n.t("ts_" + entry.type)));
     if (res.holidayName) cell.appendChild(el("span", "hol", res.holidayName));
-    cell.appendChild(el("span", "amt tabular", res.E ? I18n.fmtMoney(res.E) : "–"));
+    /* sick days earn 0 gross but still pay the DPN náhrada (r.nem) */
+    const amt = (res.E || 0) + (res.nem || 0);
+    cell.appendChild(el("span", "amt tabular", amt ? I18n.fmtMoney(amt) : "–"));
     if (entry.overtime && !isNahr) cell.appendChild(el("span", "ot-mark", "⚡"));
   }
 

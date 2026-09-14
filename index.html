@@ -26,15 +26,25 @@
   </div>
   <div class="period">
     <button type="button" id="themeToggle" class="theme-toggle" data-i18n-aria="themeAria" aria-label="Toggle dark theme">🌙</button>
-    <select id="langSelect" data-i18n-aria="langAria" aria-label="Language">
-      <option value="ru">Русский</option>
-      <option value="uk">Українська</option>
-      <option value="en">English</option>
-      <option value="cs">Čeština</option>
-      <option value="pl">Polski</option>
+    <span class="lang-caption">Language</span>
+    <select id="langSelect" aria-label="Language" title="Language">
+      <option value="ru">🇷🇺 Русский</option>
+      <option value="uk">🇺🇦 Українська</option>
+      <option value="en">🇺🇸 English</option>
+      <option value="cs">🇨🇿 Čeština</option>
+      <option value="pl">🇵🇱 Polski</option>
     </select>
     <select id="monthSelect" data-i18n-aria="monthAria" aria-label="Month"></select>
     <select id="yearSelect" data-i18n-aria="yearAria" aria-label="Year"></select>
+  </div>
+</div>
+<div class="privacy-modal" id="whatsNewModal" hidden>
+  <div class="privacy-box" role="dialog" aria-modal="true">
+    <div class="privacy-head">
+      <strong data-i18n="whatsNewTitle">What's new</strong>
+      <button type="button" id="whatsNewClose" class="pop-close" data-i18n-aria="popoverClose" aria-label="Close">✕</button>
+    </div>
+    <div class="privacy-body" id="whatsNewBody"></div>
   </div>
 </div>
 <div class="subbar">
@@ -65,10 +75,10 @@
         <input type="number" id="ratePhvInput" min="0" step="0.01" value="246.06">
         <span class="unit" data-i18n="u_kch">CZK/h</span>
       </label>
-      <label class="rates-field">
-        <span data-i18n="f_bonusMonthKc">Pracovní odměna (fixed, per month)</span>
-        <input type="number" id="rateBonusInput" min="0" step="1" value="0">
-        <span class="unit" data-i18n="u_kc">Kč</span>
+      <label class="rates-field rates-check">
+        <span data-i18n="f_bonusVoid">Warning letter / ADAPT this month</span>
+        <input type="checkbox" id="bonusVoidInput">
+        <span class="unit" data-i18n="attVoidHint">bonus 0</span>
       </label>
       <span class="rates-hint" data-i18n="myRatesHint">Personal hourly rates — used for your calculation only</span>
     </div>
@@ -91,6 +101,7 @@
       <div class="hint" id="sumDays">0</div>
     </div>
   </section>
+  <div class="att-line" id="attLine" hidden></div>
 
   <section class="panel" id="shiftsPanel">
     <div class="panel-head">
@@ -131,6 +142,20 @@
   </details>
 
 </div>
+
+<!-- Print-only payslip sheet (výplatní páska style). Hidden on screen; the print
+     stylesheet flips visibility — the app UI hides, this shows. Filled by app.js. -->
+<section class="payslip" id="payslipPrint" aria-hidden="true">
+  <div class="ps-head">
+    <div class="ps-title" data-i18n="psTitle">Výplatní páska</div>
+    <div class="ps-period" id="psPeriod"></div>
+  </div>
+  <div class="ps-meta" id="psMeta"></div>
+  <table class="ps-table" id="psEarnings"></table>
+  <table class="ps-table" id="psDeductions"></table>
+  <div class="ps-net" id="psNetLine"></div>
+  <div class="ps-note" data-i18n="psNote"></div>
+</section>
 
 <footer>
   MIT License <span class="sep">·</span> <span data-i18n="footerBy">Code by</span> Vladyslav Simonov <span class="sep">·</span>

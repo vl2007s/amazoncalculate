@@ -1,0 +1,953 @@
+From b80b2e2cdc388927ab850a81d8b268313605e0dd Mon Sep 17 00:00:00 2001
+From: Kimi <kimi@dev>
+Date: Mon, 14 Sep 2026 23:07:26 +0800
+Subject: [PATCH 1/5] Add versioned whats-new banner (once per release,
+ dismissal in localStorage, i18n x5)
+
+---
+ css/styles.css |  8 ++++++++
+ index.html     |  4 ++++
+ js/app.js      | 17 +++++++++++++++++
+ js/locales.js  |  5 +++++
+ 4 files changed, 34 insertions(+)
+
+diff --git a/css/styles.css b/css/styles.css
+index 2a57157..d1e1789 100644
+--- a/css/styles.css
++++ b/css/styles.css
+@@ -49,6 +49,14 @@ html[data-theme="dark"] table.breakdown tr.total-row td{border-top-color:var(--t
+   padding:8px 11px; font-size:15px; line-height:1;
+ }
+ .theme-toggle:hover{border-color:#6c7a89;}
++/* What's-new banner: shown once per release (version-gated via localStorage) */
++.wn-banner{
++  display:flex; align-items:center; gap:12px; max-width:1100px; margin:10px auto 0; padding:10px 14px;
++  background:var(--surface-0); border:1px solid var(--line); border-left:4px solid var(--accent-500);
++  border-radius:var(--radius-md); box-shadow:var(--shadow-card); font-size:14px;
++}
++.wn-banner .wn-text{flex:1;}
++.wn-banner .pop-close{position:static;}
+ *{box-sizing:border-box;}
+ html,body{margin:0;padding:0;}
+ body{
+diff --git a/index.html b/index.html
+index 200d285..52da55a 100644
+--- a/index.html
++++ b/index.html
+@@ -37,6 +37,10 @@
+     <select id="yearSelect" data-i18n-aria="yearAria" aria-label="Year"></select>
+   </div>
+ </div>
++<div class="wn-banner" id="whatsNewBanner" hidden>
++  <span class="wn-text" data-i18n="whatsNew"></span>
++  <button type="button" id="whatsNewClose" class="pop-close" data-i18n-aria="popoverClose" aria-label="Close">✕</button>
++</div>
+ <div class="subbar">
+   <span id="periodLabel" class="tabular"></span>
+   <span style="display:flex; align-items:center; gap:16px;">
+diff --git a/js/app.js b/js/app.js
+index 46f3f8d..915ab11 100644
+--- a/js/app.js
++++ b/js/app.js
+@@ -119,6 +119,23 @@
+   privacyModal.addEventListener("click", function (e) { if (e.target === privacyModal) closePrivacy(); });
+   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closePrivacy(); });
+ 
++  /* ============ What's-new banner ============
++   * Release announcements: bump WHATS_NEW_VERSION and update the "whatsNew"
++   * locale strings — everyone who dismissed the previous banner sees the new
++   * one exactly once (dismissal is remembered in localStorage). */
++  const WHATS_NEW_VERSION = "2026-09-14";
++  const LS_WHATSNEW = "hpp_kalkulacka_whatsnew_v1";
++  (function initWhatsNew() {
++    const banner = document.getElementById("whatsNewBanner");
++    let seen = null;
++    try { seen = localStorage.getItem(LS_WHATSNEW); } catch (e) { /* private mode */ }
++    if (seen !== WHATS_NEW_VERSION) banner.hidden = false;
++    document.getElementById("whatsNewClose").addEventListener("click", function () {
++      banner.hidden = true;
++      try { localStorage.setItem(LS_WHATSNEW, WHATS_NEW_VERSION); } catch (e) { }
++    });
++  })();
++
+   let toastTimer = null;
+   function showSaved() {
+     saveIndicator.classList.remove("idle");
+diff --git a/js/locales.js b/js/locales.js
+index f701ac2..010e6e7 100644
+--- a/js/locales.js
++++ b/js/locales.js
+@@ -111,6 +111,7 @@
+       resetDefaults: "Restore default rates",
+       printBtn: "🖨 Print / save as PDF",
+       toastSaved: "✓ Saved",
++      whatsNew: "✨ New: Polish language, half-day and sick-leave day types, math calibrated against real payslips. Tip: enter Pracovní odměna from your payslip for an exact match.",
+       todayMark: "Today",
+       popoverClose: "Close",
+       g_base: "Base rates",
+@@ -250,6 +251,7 @@
+       resetDefaults: "Вернуть ставки по умолчанию",
+       printBtn: "🖨 Печать / сохранить как PDF",
+       toastSaved: "✓ Сохранено",
++      whatsNew: "✨ Новое: польский язык, полудневка и больничный, расчёты откалиброваны по реальным pásky. Совет: вбей Pracovní odměna с pásky — сойдётся до кроны.",
+       todayMark: "Сегодня",
+       popoverClose: "Закрыть",
+       g_base: "Базовые ставки",
+@@ -389,6 +391,7 @@
+       resetDefaults: "Повернути ставки за замовчуванням",
+       printBtn: "🖨 Друк / зберегти як PDF",
+       toastSaved: "✓ Збережено",
++      whatsNew: "✨ Нове: польська мова, південка та лікарняний, розрахунки відкалібровані за реальними pásky. Порада: введи Pracovní odměna з pásky — зійдеться до крони.",
+       todayMark: "Сьогодні",
+       popoverClose: "Закрити",
+       g_base: "Базові ставки",
+@@ -528,6 +531,7 @@
+       resetDefaults: "Obnovit výchozí sazby",
+       printBtn: "🖨 Vytisknout / uložit jako PDF",
+       toastSaved: "✓ Uloženo",
++      whatsNew: "✨ Nové: polština, půlden a nemocenská, výpočty kalibrované podle reálných pásek. Tip: zadej Pracovní odměnu z pásky a výsledek sedne na korunu.",
+       todayMark: "Dnes",
+       popoverClose: "Zavřít",
+       g_base: "Základní sazby",
+@@ -667,6 +671,7 @@
+       resetDefaults: "Przywróć stawki domyślne",
+       printBtn: "🖨 Drukuj / zapisz jako PDF",
+       toastSaved: "✓ Zapisano",
++      whatsNew: "✨ Nowości: język polski, pół dnia i zwolnienie lekarskie, obliczenia skalibrowane według prawdziwych pasków. Wskazówka: wpisz Pracovní odměnę z paska — zgodzi się co do korony.",
+       todayMark: "Dziś",
+       popoverClose: "Zamknij",
+       g_base: "Stawki podstawowe",
+-- 
+2.39.5
+
+
+From 0627c6c1d7dee9e0f44e5e712976af096ab67c17 Mon Sep 17 00:00:00 2001
+From: Kimi <kimi@dev>
+Date: Mon, 14 Sep 2026 23:17:02 +0800
+Subject: [PATCH 2/5] Language switcher: flag emojis + static English caption
+ (auto-detect of system language already in i18n.detect)
+
+---
+ css/styles.css |  3 +++
+ index.html     | 13 +++++++------
+ 2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/css/styles.css b/css/styles.css
+index d1e1789..7ccd7a8 100644
+--- a/css/styles.css
++++ b/css/styles.css
+@@ -49,6 +49,9 @@ html[data-theme="dark"] table.breakdown tr.total-row td{border-top-color:var(--t
+   padding:8px 11px; font-size:15px; line-height:1;
+ }
+ .theme-toggle:hover{border-color:#6c7a89;}
++/* Language selector caption: always English so anyone can find the switcher */
++.lang-caption{font-size:12px; color:var(--text-500); font-weight:600; letter-spacing:.02em;}
++
+ /* What's-new banner: shown once per release (version-gated via localStorage) */
+ .wn-banner{
+   display:flex; align-items:center; gap:12px; max-width:1100px; margin:10px auto 0; padding:10px 14px;
+diff --git a/index.html b/index.html
+index 52da55a..fe027b3 100644
+--- a/index.html
++++ b/index.html
+@@ -26,12 +26,13 @@
+   </div>
+   <div class="period">
+     <button type="button" id="themeToggle" class="theme-toggle" data-i18n-aria="themeAria" aria-label="Toggle dark theme">🌙</button>
+-    <select id="langSelect" data-i18n-aria="langAria" aria-label="Language">
+-      <option value="ru">Русский</option>
+-      <option value="uk">Українська</option>
+-      <option value="en">English</option>
+-      <option value="cs">Čeština</option>
+-      <option value="pl">Polski</option>
++    <span class="lang-caption">Language</span>
++    <select id="langSelect" aria-label="Language" title="Language">
++      <option value="ru">🇷🇺 Русский</option>
++      <option value="uk">🇺🇦 Українська</option>
++      <option value="en">🇺🇸 English</option>
++      <option value="cs">🇨🇿 Čeština</option>
++      <option value="pl">🇵🇱 Polski</option>
+     </select>
+     <select id="monthSelect" data-i18n-aria="monthAria" aria-label="Month"></select>
+     <select id="yearSelect" data-i18n-aria="yearAria" aria-label="Year"></select>
+-- 
+2.39.5
+
+
+From 712a85e5413e48f22fa8ad70c99865e44ffedc40 Mon Sep 17 00:00:00 2001
+From: Kimi <kimi@dev>
+Date: Mon, 14 Sep 2026 23:32:54 +0800
+Subject: [PATCH 3/5] Fix whats-new close button (hidden vs display:flex),
+ print stylesheet: clean payslip sheet (summary+calendar+breakdown only,
+ colors preserved), detailed whatsNew x5
+
+---
+ css/styles.css | 12 +++++++++---
+ js/locales.js  | 10 +++++-----
+ 2 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/css/styles.css b/css/styles.css
+index 7ccd7a8..1181356 100644
+--- a/css/styles.css
++++ b/css/styles.css
+@@ -60,6 +60,8 @@ html[data-theme="dark"] table.breakdown tr.total-row td{border-top-color:var(--t
+ }
+ .wn-banner .wn-text{flex:1;}
+ .wn-banner .pop-close{position:static;}
++/* author display:flex would override the hidden attribute — restore it */
++.wn-banner[hidden]{display:none !important;}
+ *{box-sizing:border-box;}
+ html,body{margin:0;padding:0;}
+ body{
+@@ -416,10 +418,14 @@ body{overflow-x:hidden;}
+ .privacy-body p{font-size:13.5px; color:var(--text-600); margin:0 0 10px; line-height:1.55;}
+ .privacy-body p strong{color:var(--text-900);}
+ 
++/* Print / save as PDF: payslip-style sheet — name, summary cards, shift
++ * calendar and the per-day breakdown. All interactive UI stays out. */
+ @media print{
+-  .topbar select, .topbar input,
+-  .settings-actions, .toast, .subbar a, .calendar-wrap, .day-popover,
+-  .brush-bar{display:none !important;}
++  .topbar, .subbar, .brush-bar, .legend, .wn-banner, .day-popover,
++  #settingsPanel, footer, .toast, .privacy-modal, .settings-link{display:none !important;}
+   body{background:#fff;}
+   .panel{box-shadow:none; border:1px solid #ccc;}
++  details > summary .chev{display:none;}
++  /* keep the shift colors on paper — browsers strip backgrounds by default */
++  .cal-day, .cal-day .chip{print-color-adjust:exact; -webkit-print-color-adjust:exact;}
+ }
+diff --git a/js/locales.js b/js/locales.js
+index 010e6e7..8f8c522 100644
+--- a/js/locales.js
++++ b/js/locales.js
+@@ -111,7 +111,7 @@
+       resetDefaults: "Restore default rates",
+       printBtn: "🖨 Print / save as PDF",
+       toastSaved: "✓ Saved",
+-      whatsNew: "✨ New: Polish language, half-day and sick-leave day types, math calibrated against real payslips. Tip: enter Pracovní odměna from your payslip for an exact match.",
++      whatsNew: "✨ What's new: 🇵🇱 Polish language • Half-day type (½ shift + ½ paid vacation) • Sick leave (60 %, first 14 days) • night/weekend/overtime bonuses now from PHV, tax credit 2 570 Kč — net salary matches real payslips to the crown • Pracovní odměna field: 10 % estimate or exact amount from your payslip • print/PDF now outputs a clean payslip sheet.",
+       todayMark: "Today",
+       popoverClose: "Close",
+       g_base: "Base rates",
+@@ -251,7 +251,7 @@
+       resetDefaults: "Вернуть ставки по умолчанию",
+       printBtn: "🖨 Печать / сохранить как PDF",
+       toastSaved: "✓ Сохранено",
+-      whatsNew: "✨ Новое: польский язык, полудневка и больничный, расчёты откалиброваны по реальным pásky. Совет: вбей Pracovní odměna с pásky — сойдётся до кроны.",
++      whatsNew: "✨ Что нового: 🇵🇱 польский язык • полудневка (½ смены + ½ оплачиваемого отпуска) • больничный (60 %, первые 14 дней) • приплатки за ночь/выходные/переработку теперь от PHV, скидка на налог 2 570 Kč — netto сходится с pásky до кроны • поле Pracovní odměna: оценка 10 % или точная сумма с pásky • печать/PDF выдаёт чистый расчётный листок.",
+       todayMark: "Сегодня",
+       popoverClose: "Закрыть",
+       g_base: "Базовые ставки",
+@@ -391,7 +391,7 @@
+       resetDefaults: "Повернути ставки за замовчуванням",
+       printBtn: "🖨 Друк / зберегти як PDF",
+       toastSaved: "✓ Збережено",
+-      whatsNew: "✨ Нове: польська мова, південка та лікарняний, розрахунки відкалібровані за реальними pásky. Порада: введи Pracovní odměna з pásky — зійдеться до крони.",
++      whatsNew: "✨ Що нового: 🇵🇱 польська мова • південка (½ зміни + ½ оплачуваної відпустки) • лікарняний (60 %, перші 14 днів) • доплати за ніч/вихідні/переробку тепер від PHV, знижка на податок 2 570 Kč — netto сходиться з pásky до крони • поле Pracovní odměna: оцінка 10 % або точна сума з pásky • друк/PDF видає чистий розрахунковий листок.",
+       todayMark: "Сьогодні",
+       popoverClose: "Закрити",
+       g_base: "Базові ставки",
+@@ -531,7 +531,7 @@
+       resetDefaults: "Obnovit výchozí sazby",
+       printBtn: "🖨 Vytisknout / uložit jako PDF",
+       toastSaved: "✓ Uloženo",
+-      whatsNew: "✨ Nové: polština, půlden a nemocenská, výpočty kalibrované podle reálných pásek. Tip: zadej Pracovní odměnu z pásky a výsledek sedne na korunu.",
++      whatsNew: "✨ Co je nového: 🇵🇱 polština • půlden (½ směny + ½ placené dovolené) • nemocenská (60 %, prvních 14 dnů) • příplatky za noc/víkend/přesčas nově z PHV, sleva na dani 2 570 Kč — netto sedí s páskou na korunu • pole Pracovní odměna: odhad 10 % nebo přesná částka z pásky • tisk/PDF vydá čistou výplatní pásku.",
+       todayMark: "Dnes",
+       popoverClose: "Zavřít",
+       g_base: "Základní sazby",
+@@ -671,7 +671,7 @@
+       resetDefaults: "Przywróć stawki domyślne",
+       printBtn: "🖨 Drukuj / zapisz jako PDF",
+       toastSaved: "✓ Zapisano",
+-      whatsNew: "✨ Nowości: język polski, pół dnia i zwolnienie lekarskie, obliczenia skalibrowane według prawdziwych pasków. Wskazówka: wpisz Pracovní odměnę z paska — zgodzi się co do korony.",
++      whatsNew: "✨ Co nowego: 🇵🇱 język polski • pół dnia (½ zmiany + ½ płatnego urlopu) • zwolnienie lekarskie (60 %, pierwsze 14 dni) • dodatki za noc/weekend/nadgodziny teraz od PHV, ulga podatkowa 2 570 Kč — netto zgadza się z paskiem co do korony • pole Pracovní odměna: szacunek 10 % albo dokładna kwota z paska • druk/PDF daje czysty pasek wynagrodzenia.",
+       todayMark: "Dziś",
+       popoverClose: "Zamknij",
+       g_base: "Stawki podstawowe",
+-- 
+2.39.5
+
+
+From 1812698639b42a2800dd4974dfea1cd88c1e0110 Mon Sep 17 00:00:00 2001
+From: agent <agent@example.com>
+Date: Mon, 14 Sep 2026 23:50:55 +0800
+Subject: [PATCH 4/5] =?UTF-8?q?Print=20payslip=20sheet=20(v=C3=BDplatn?=
+ =?UTF-8?q?=C3=AD=20p=C3=A1ska=20style):=20earnings/deductions/net=20from?=
+ =?UTF-8?q?=20site=20data,=20i18n=20x5?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- New print-only section: Adecco-style payslip with earnings lines (time wage,
+  holiday comp, night/weekend/overtime/holiday supplements, vacation, sick pay,
+  attendance bonus), gross, deductions (social 7.1%, health 4.5%, tax 15%-2570),
+  and net highlighted
+- Payroll.calcNettoDetail exposes deduction components line by line
+- Print now outputs ONLY the payslip sheet (calendar/summary/breakdown hidden)
+- 22 new ps* i18n keys in all 5 languages (Czech terms with local glosses)
+- Smoke-tested aggregation across all locales; 27 calibration tests pass
+---
+ css/styles.css |  21 ++++++---
+ index.html     |  14 ++++++
+ js/app.js      |  63 ++++++++++++++++++++++++++
+ js/locales.js  | 120 +++++++++++++++++++++++++++++++++++++++++++++++++
+ js/payroll.js  |   9 +++-
+ 5 files changed, 221 insertions(+), 6 deletions(-)
+
+diff --git a/css/styles.css b/css/styles.css
+index 1181356..9eaa116 100644
+--- a/css/styles.css
++++ b/css/styles.css
+@@ -420,12 +420,23 @@ body{overflow-x:hidden;}
+ 
+ /* Print / save as PDF: payslip-style sheet — name, summary cards, shift
+  * calendar and the per-day breakdown. All interactive UI stays out. */
++/* ============ Payslip sheet (print only) ============ */
++.payslip{display:none;}
+ @media print{
+   .topbar, .subbar, .brush-bar, .legend, .wn-banner, .day-popover,
+-  #settingsPanel, footer, .toast, .privacy-modal, .settings-link{display:none !important;}
++  #settingsPanel, footer, .toast, .privacy-modal, .settings-link,
++  .summary, .rates-panel, .name-field, #shiftsPanel{display:none !important;}
++  .payslip{display:block; margin:0 auto; max-width:700px; padding:14px 16px; border:1px solid #999; border-radius:6px; color:#111;}
++  .payslip .ps-head{display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #111; padding-bottom:6px; margin-bottom:8px;}
++  .payslip .ps-title{font-weight:800; font-size:16px;}
++  .payslip .ps-period{font-weight:600;}
++  .payslip .ps-meta{font-size:12px; color:#333; margin-bottom:10px;}
++  .payslip .ps-table{width:100%; border-collapse:collapse; font-size:12px; margin-bottom:8px;}
++  .payslip .ps-table th{text-align:left; border-bottom:1px solid #555; padding:3px 4px; font-size:11px; text-transform:uppercase; letter-spacing:.04em;}
++  .payslip .ps-table td{padding:3px 4px; border-bottom:1px dotted #bbb;}
++  .payslip .ps-table td:last-child, .payslip .ps-table th:last-child{text-align:right;}
++  .payslip .ps-table tr.ps-total td{border-top:1.5px solid #111; border-bottom:none; font-weight:700; padding-top:5px;}
++  .payslip .ps-net{margin-top:10px; padding:8px 10px; border:2px solid #111; border-radius:6px; font-weight:800; font-size:15px; text-align:right;}
++  .payslip .ps-note{margin-top:8px; font-size:10px; color:#555;}
+   body{background:#fff;}
+-  .panel{box-shadow:none; border:1px solid #ccc;}
+-  details > summary .chev{display:none;}
+-  /* keep the shift colors on paper — browsers strip backgrounds by default */
+-  .cal-day, .cal-day .chip{print-color-adjust:exact; -webkit-print-color-adjust:exact;}
+ }
+diff --git a/index.html b/index.html
+index fe027b3..a010086 100644
+--- a/index.html
++++ b/index.html
+@@ -137,6 +137,20 @@
+ 
+ </div>
+ 
++<!-- Print-only payslip sheet (výplatní páska style). Hidden on screen; the print
++     stylesheet flips visibility — the app UI hides, this shows. Filled by app.js. -->
++<section class="payslip" id="payslipPrint" aria-hidden="true">
++  <div class="ps-head">
++    <div class="ps-title" data-i18n="psTitle">Výplatní páska</div>
++    <div class="ps-period" id="psPeriod"></div>
++  </div>
++  <div class="ps-meta" id="psMeta"></div>
++  <table class="ps-table" id="psEarnings"></table>
++  <table class="ps-table" id="psDeductions"></table>
++  <div class="ps-net" id="psNetLine"></div>
++  <div class="ps-note" data-i18n="psNote"></div>
++</section>
++
+ <footer>
+   MIT License <span class="sep">·</span> <span data-i18n="footerBy">Code by</span> Vladyslav Simonov <span class="sep">·</span>
+   <a href="https://t.me/vl2007s" target="_blank" rel="noopener">t.me/vl2007s</a> <span class="sep">·</span>
+diff --git a/js/app.js b/js/app.js
+index 915ab11..d2c378d 100644
+--- a/js/app.js
++++ b/js/app.js
+@@ -323,6 +323,67 @@
+     breakdownTable.innerHTML = thead + "<tbody>" + rows + "</tbody>";
+   }
+ 
++  /* ============ Payslip sheet (print only) ============
++   * Aggregates the month into an Adecco-style výplatní páska: earnings lines,
++   * deductions, net. Rendered on every re-render so printing is always current. */
++  function renderPayslip(results) {
++    const s = state.settings;
++    const agg = { casova: 0, casovaH: 0, nahrSvat: 0, K: 0, G: 0, L: 0, H: 0, M: 0, N: 0, dov: 0, nem: 0, P: 0, E: 0, wDays: 0 };
++    results.forEach(function (r, i) {
++      const t = state.shifts[i] ? state.shifts[i].type : "volno";
++      agg.wDays += (t === "den" || t === "noc") ? 1 : (t === "pulden" ? 0.5 : 0);
++      if (r.isHolidayShift && r.holidayWork === false) agg.nahrSvat += r.J;
++      else { agg.casova += r.J; agg.casovaH += s.baseRate ? r.J / s.baseRate : 0; }
++      agg.K += r.K; agg.G += r.G; agg.L += r.L; agg.H += r.H; agg.M += r.M; agg.N += r.N;
++      agg.nem += r.exempt || 0;
++      agg.dov += r.O - (r.exempt || 0);
++      agg.P += r.P; agg.E += r.E;
++    });
++
++    document.getElementById("psPeriod").textContent = I18n.monthName(state.month) + " " + state.year;
++    const meta = [];
++    if (state.name) meta.push(I18n.t("psName") + ": " + state.name);
++    meta.push(I18n.t("psWorked") + ": " + I18n.fmtNum(agg.casovaH) + " " + I18n.t("hoursUnit") +
++      " (" + I18n.fmtNum(agg.wDays) + " " + I18n.plural(agg.wDays, I18n.t("daysForms")) + ")");
++    meta.push(I18n.t("psRateBase") + ": " + I18n.fmtNum(s.baseRate) + " " + I18n.t("u_kch"));
++    meta.push(I18n.t("psRatePhv") + ": " + I18n.fmtNum(s.phvRate) + " " + I18n.t("u_kch"));
++    document.getElementById("psMeta").textContent = meta.join("   ·   ");
++
++    function rows(el, title, lines, totalKey, totalVal) {
++      let html = '<thead><tr><th colspan="2">' + I18n.esc(title) + '</th><th class="ps-r">' +
++        I18n.esc(I18n.t("hoursUnit")) + '</th><th class="ps-r">Kč</th></tr></thead><tbody>';
++      lines.forEach(function (ln) {
++        if (!ln || !(Math.abs(ln.val) > 0.004)) return;
++        html += '<tr><td colspan="2">' + I18n.esc(ln.label) + '</td><td class="ps-r">' +
++          (ln.h ? I18n.fmtNum(ln.h) : "") + '</td><td class="ps-r">' + I18n.fmtNum(ln.val) + '</td></tr>';
++      });
++      html += '<tr class="ps-total"><td colspan="3">' + I18n.esc(I18n.t(totalKey)) + '</td><td class="ps-r">' +
++        I18n.fmtMoney(totalVal) + '</td></tr></tbody>';
++      document.getElementById(el).innerHTML = html;
++    }
++
++    const det = Payroll.calcNettoDetail(agg.E, agg.E - agg.nem);
++    rows("psEarnings", I18n.t("psEarnings"), [
++      { label: I18n.t("psTimeWage"), h: agg.casovaH, val: agg.casova },
++      agg.nahrSvat ? { label: I18n.t("psNahrHoliday"), val: agg.nahrSvat } : null,
++      agg.K ? { label: I18n.t("psNight"), h: agg.G, val: agg.K } : null,
++      agg.L ? { label: I18n.t("psWeekend"), h: agg.H, val: agg.L } : null,
++      agg.M ? { label: I18n.t("psOvertime"), val: agg.M } : null,
++      agg.N ? { label: I18n.t("psHolidaySup"), val: agg.N } : null,
++      agg.dov ? { label: I18n.t("psVacation"), val: agg.dov } : null,
++      agg.nem ? { label: I18n.t("psSick"), val: agg.nem } : null,
++      agg.P ? { label: I18n.t("psBonus"), val: agg.P } : null
++    ], "psGross", agg.E);
++
++    rows("psDeductions", I18n.t("psDeductions"), [
++      { label: I18n.t("psSocial"), val: det.socialni },
++      { label: I18n.t("psHealth"), val: det.zdrav },
++      { label: I18n.t("psTax"), val: det.dan }
++    ], "psNet", det.net);
++
++    document.getElementById("psNetLine").textContent = I18n.t("psNet") + ": " + I18n.fmtMoney(det.net);
++  }
++
+   /* ============ Render ============ */
+   function renderMonthSelect() {
+     monthSelect.innerHTML = "";
+@@ -411,6 +472,7 @@
+         window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: painted, brush: b }, idx);
+         renderSummary(painted);
+         renderBreakdown(painted);
++        renderPayslip(painted);
+       },
+       onPaintEnd: function () {
+         persistAll();
+@@ -420,6 +482,7 @@
+ 
+     renderSummary(results);
+     renderBreakdown(results);
++    renderPayslip(results);
+   }
+ 
+   /* ============ Events ============ */
+diff --git a/js/locales.js b/js/locales.js
+index 8f8c522..2f3cdc8 100644
+--- a/js/locales.js
++++ b/js/locales.js
+@@ -112,6 +112,30 @@
+       printBtn: "🖨 Print / save as PDF",
+       toastSaved: "✓ Saved",
+       whatsNew: "✨ What's new: 🇵🇱 Polish language • Half-day type (½ shift + ½ paid vacation) • Sick leave (60 %, first 14 days) • night/weekend/overtime bonuses now from PHV, tax credit 2 570 Kč — net salary matches real payslips to the crown • Pracovní odměna field: 10 % estimate or exact amount from your payslip • print/PDF now outputs a clean payslip sheet.",
++
++      /* Print payslip sheet (výplatní páska) */
++      psTitle: "Výplatní páska — payslip",
++      psName: "Name",
++      psWorked: "Worked",
++      psRateBase: "Base rate",
++      psRatePhv: "Average earnings (PHV)",
++      psEarnings: "Earnings",
++      psTimeWage: "Časová mzda (time wage)",
++      psNahrHoliday: "Náhrada za svátek (holiday — not worked)",
++      psNight: "Příplatek noční (night) 10 % PHV",
++      psWeekend: "Příplatek víkend (weekend) 10 % PHV",
++      psOvertime: "Příplatek přesčas (overtime) 25 % PHV",
++      psHolidaySup: "Příplatek svátek (holiday worked)",
++      psVacation: "Dovolená / náhrady (vacation & comp.)",
++      psSick: "Náhrada mzdy — nemoc (sick pay, 60 %)",
++      psBonus: "Pracovní odměna (attendance bonus)",
++      psGross: "Hrubá mzda (gross)",
++      psDeductions: "Deductions",
++      psSocial: "Sociální pojištění (social) 7.1 %",
++      psHealth: "Zdravotní pojištění (health) 4.5 %",
++      psTax: "Zálohová daň (tax) 15 % − 2 570 Kč",
++      psNet: "K výplatě (net)",
++      psNote: "Unofficial document — an estimate from this calculator, not a substitute for the official payslip from Adecco.",
+       todayMark: "Today",
+       popoverClose: "Close",
+       g_base: "Base rates",
+@@ -252,6 +276,30 @@
+       printBtn: "🖨 Печать / сохранить как PDF",
+       toastSaved: "✓ Сохранено",
+       whatsNew: "✨ Что нового: 🇵🇱 польский язык • полудневка (½ смены + ½ оплачиваемого отпуска) • больничный (60 %, первые 14 дней) • приплатки за ночь/выходные/переработку теперь от PHV, скидка на налог 2 570 Kč — netto сходится с pásky до кроны • поле Pracovní odměna: оценка 10 % или точная сумма с pásky • печать/PDF выдаёт чистый расчётный листок.",
++
++      /* Печатный расчётный листок (výplatní páska) */
++      psTitle: "Výplatní páska — расчётный листок",
++      psName: "Имя",
++      psWorked: "Отработано",
++      psRateBase: "Základní sazba (базовая ставка)",
++      psRatePhv: "Průměrný výdělek (PHV)",
++      psEarnings: "Начисления",
++      psTimeWage: "Časová mzda (почасовая оплата)",
++      psNahrHoliday: "Náhrada za svátek (праздник — не работал)",
++      psNight: "Příplatek noční (ночные) 10 % PHV",
++      psWeekend: "Příplatek víkend (выходные) 10 % PHV",
++      psOvertime: "Příplatek přesčas (переработка) 25 % PHV",
++      psHolidaySup: "Příplatek svátek (праздник — работал)",
++      psVacation: "Dovolená / náhrady (отпуск / компенсации)",
++      psSick: "Náhrada mzdy — nemoc (больничный, 60 %)",
++      psBonus: "Pracovní odměna (дохазковый бонус)",
++      psGross: "Hrubá mzda (начислено)",
++      psDeductions: "Srážky (удержания)",
++      psSocial: "Sociální pojištění (соцстрах) 7,1 %",
++      psHealth: "Zdravotní pojištění (медстрах) 4,5 %",
++      psTax: "Zálohová daň (подоходный) 15 % − 2 570 Kč",
++      psNet: "K výplatě (чистыми)",
++      psNote: "Неофициальный документ — оценка калькулятора, не заменяет výplatní pásku от Adecco.",
+       todayMark: "Сегодня",
+       popoverClose: "Закрыть",
+       g_base: "Базовые ставки",
+@@ -392,6 +440,30 @@
+       printBtn: "🖨 Друк / зберегти як PDF",
+       toastSaved: "✓ Збережено",
+       whatsNew: "✨ Що нового: 🇵🇱 польська мова • південка (½ зміни + ½ оплачуваної відпустки) • лікарняний (60 %, перші 14 днів) • доплати за ніч/вихідні/переробку тепер від PHV, знижка на податок 2 570 Kč — netto сходиться з pásky до крони • поле Pracovní odměna: оцінка 10 % або точна сума з pásky • друк/PDF видає чистий розрахунковий листок.",
++
++      /* Друкований розрахунковий листок (výplatní páska) */
++      psTitle: "Výplatní páska — розрахунковий листок",
++      psName: "Ім'я",
++      psWorked: "Відпрацьовано",
++      psRateBase: "Základní sazba (базова ставка)",
++      psRatePhv: "Průměrný výdělek (PHV)",
++      psEarnings: "Нарахування",
++      psTimeWage: "Časová mzda (погодинна оплата)",
++      psNahrHoliday: "Náhrada za svátek (свято — не працював)",
++      psNight: "Příplatek noční (нічні) 10 % PHV",
++      psWeekend: "Příplatek víkend (вихідні) 10 % PHV",
++      psOvertime: "Příplatek přesčas (переробка) 25 % PHV",
++      psHolidaySup: "Příplatek svátek (свято — працював)",
++      psVacation: "Dovolená / náhrady (відпустка / компенсації)",
++      psSick: "Náhrada mzdy — nemoc (лікарняний, 60 %)",
++      psBonus: "Pracovní odměna (бонус за відвідуваність)",
++      psGross: "Hrubá mzda (нараховано)",
++      psDeductions: "Srážky (утримання)",
++      psSocial: "Sociální pojištění (соцстрах) 7,1 %",
++      psHealth: "Zdravotní pojištění (медстрах) 4,5 %",
++      psTax: "Zálohová daň (прибутковий) 15 % − 2 570 Kč",
++      psNet: "K výplatě (чистими)",
++      psNote: "Неофіційний документ — оцінка калькулятора, не замінює výplatní pásku від Adecco.",
+       todayMark: "Сьогодні",
+       popoverClose: "Закрити",
+       g_base: "Базові ставки",
+@@ -532,6 +604,30 @@
+       printBtn: "🖨 Vytisknout / uložit jako PDF",
+       toastSaved: "✓ Uloženo",
+       whatsNew: "✨ Co je nového: 🇵🇱 polština • půlden (½ směny + ½ placené dovolené) • nemocenská (60 %, prvních 14 dnů) • příplatky za noc/víkend/přesčas nově z PHV, sleva na dani 2 570 Kč — netto sedí s páskou na korunu • pole Pracovní odměna: odhad 10 % nebo přesná částka z pásky • tisk/PDF vydá čistou výplatní pásku.",
++
++      /* Tištěná výplatní páska */
++      psTitle: "Výplatní páska",
++      psName: "Jméno",
++      psWorked: "Odpracováno",
++      psRateBase: "Základní sazba",
++      psRatePhv: "Průměrný výdělek (PHV)",
++      psEarnings: "Nároky",
++      psTimeWage: "Časová mzda",
++      psNahrHoliday: "Náhrada mzdy za svátek",
++      psNight: "Příplatek za noční práci 10 % PHV",
++      psWeekend: "Příplatek za víkend 10 % PHV",
++      psOvertime: "Příplatek za přesčas 25 % PHV",
++      psHolidaySup: "Příplatek za práci ve svátek",
++      psVacation: "Dovolená / náhrady",
++      psSick: "Náhrada mzdy — nemoc (60 %)",
++      psBonus: "Pracovní odměna",
++      psGross: "Hrubá mzda",
++      psDeductions: "Srážky",
++      psSocial: "Sociální pojištění 7,1 %",
++      psHealth: "Zdravotní pojištění 4,5 %",
++      psTax: "Zálohová daň 15 % − 2 570 Kč",
++      psNet: "K výplatě",
++      psNote: "Neoficiální doklad — odhad z této kalkulačky, nenahrazuje výplatní pásku od Adecco.",
+       todayMark: "Dnes",
+       popoverClose: "Zavřít",
+       g_base: "Základní sazby",
+@@ -672,6 +768,30 @@
+       printBtn: "🖨 Drukuj / zapisz jako PDF",
+       toastSaved: "✓ Zapisano",
+       whatsNew: "✨ Co nowego: 🇵🇱 język polski • pół dnia (½ zmiany + ½ płatnego urlopu) • zwolnienie lekarskie (60 %, pierwsze 14 dni) • dodatki za noc/weekend/nadgodziny teraz od PHV, ulga podatkowa 2 570 Kč — netto zgadza się z paskiem co do korony • pole Pracovní odměna: szacunek 10 % albo dokładna kwota z paska • druk/PDF daje czysty pasek wynagrodzenia.",
++
++      /* Drukowany pasek wynagrodzenia (výplatní páska) */
++      psTitle: "Výplatní páska — pasek wynagrodzenia",
++      psName: "Imię",
++      psWorked: "Przepracowano",
++      psRateBase: "Základní sazba (stawka podstawowa)",
++      psRatePhv: "Průměrný výdělek (PHV)",
++      psEarnings: "Naliczenia",
++      psTimeWage: "Časová mzda (płaca godzinowa)",
++      psNahrHoliday: "Náhrada za svátek (święto — bez pracy)",
++      psNight: "Příplatek noční (nocne) 10 % PHV",
++      psWeekend: "Příplatek víkend (weekendy) 10 % PHV",
++      psOvertime: "Příplatek přesčas (nadgodziny) 25 % PHV",
++      psHolidaySup: "Příplatek svátek (święto — praca)",
++      psVacation: "Dovolená / náhrady (urlop / ekwiwalenty)",
++      psSick: "Náhrada mzdy — nemoc (chorobowe, 60 %)",
++      psBonus: "Pracovní odměna (premia frekwencyjna)",
++      psGross: "Hrubá mzda (brutto)",
++      psDeductions: "Srážky (potrącenia)",
++      psSocial: "Sociální pojištění (ubezp. społeczne) 7,1 %",
++      psHealth: "Zdravotní pojištění (ubezp. zdrowotne) 4,5 %",
++      psTax: "Zálohová daň (podatek) 15 % − 2 570 Kč",
++      psNet: "K výplatě (netto)",
++      psNote: "Nieoficjalny dokument — szacunek z kalkulatora, nie zastępuje výplatní pásky od Adecco.",
+       todayMark: "Dziś",
+       popoverClose: "Zamknij",
+       g_base: "Stawki podstawowe",
+diff --git a/js/payroll.js b/js/payroll.js
+index 1bc21f6..018eb3f 100644
+--- a/js/payroll.js
++++ b/js/payroll.js
+@@ -302,6 +302,12 @@
+    *  Verified against official worked examples (e.g. gross 28 520 -> SP 2 025,
+    *  ZP 1 284; gross 40 000 -> net 31 930). */
+   function calcNetto(gross, insurable) {
++    return calcNettoDetail(gross, insurable).net;
++  }
++
++  /** Same math as calcNetto, but with the components exposed — the printable
++   * payslip sheet lists the deductions line by line like Adecco does. */
++  function calcNettoDetail(gross, insurable) {
+     /* insurable = part of gross subject to SP/ZP (defaults to the whole gross).
+      * Sick-pay compensation (náhrada mzdy při DPN) is taxed but NOT insured. */
+     const ins = (typeof insurable === "number" && isFinite(insurable)) ? insurable : gross;
+@@ -309,7 +315,7 @@
+     const socialni = Math.ceil(ins * 0.071);
+     const zaklad = Math.ceil(gross / 100) * 100;
+     const dan = Math.max(0, round0(zaklad * 0.15) - 2570);
+-    return gross - zdrav - socialni - dan;
++    return { zaklad: zaklad, zdrav: zdrav, socialni: socialni, dan: dan, net: gross - zdrav - socialni - dan };
+   }
+ 
+   /**
+@@ -393,6 +399,7 @@
+     buildHolidayMap: buildHolidayMap,
+     calcDay: calcDay,
+     calcNetto: calcNetto,
++    calcNettoDetail: calcNettoDetail,
+     calcTotals: calcTotals,
+     reducePhv: reducePhv,
+     withMonthlyBonus: withMonthlyBonus,
+-- 
+2.39.5
+
+
+From c261711b9cdc4615e54b47b9bf3d4f6615ab64bf Mon Sep 17 00:00:00 2001
+From: agent <agent@example.com>
+Date: Tue, 15 Sep 2026 00:17:57 +0800
+Subject: [PATCH 5/5] =?UTF-8?q?Fix=20nemoc=20(DPN)=20booking:=20n=C3=A1hra?=
+ =?UTF-8?q?da=20paid=20outside=20gross=20=E2=80=94=20matches=20Adecco=20pa?=
+ =?UTF-8?q?yslip=2008/2026?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Feedback from real payslip (PHV 237.18, odpracováno 149.83 h): Adecco excludes
+náhrada mzdy při DPN from hrubá mzda entirely — no SP/ZP, no income tax, added
+straight to the payout. Previously we counted it inside gross and taxed it,
+inflating gross by ~2.5k and skewing net.
+
+- payroll: nemoc day -> E=0, compensation in new field 'nem' (net-only)
+- summary: 'Odpracováno' hours now exclude sick/vacation hours (149.83 not 169.17)
+- summary net = calcNetto(gross) + nem; calendar/breakdown show sick-day pay
+- payslip print: gross excludes náhrada, 'K výplatě' includes it (Adecco-style)
+- api: netEstimate updated, day objects expose 'nem'
+- tests: colleague payslip 08/2026 reproduced (gross 36 831, net 32 069 within
+  the 0.8h night-window rounding, ~20 Kč); 34 tests pass
+---
+ api/server.js       |  6 ++++--
+ js/app.js           | 35 ++++++++++++++++++++++++-----------
+ js/calendar.js      |  4 +++-
+ js/locales.js       | 10 +++++-----
+ js/payroll.js       | 20 ++++++++++++--------
+ test-calibration.js | 32 +++++++++++++++++++++++++++-----
+ 6 files changed, 75 insertions(+), 32 deletions(-)
+
+diff --git a/api/server.js b/api/server.js
+index db9eeed..e30f8cd 100644
+--- a/api/server.js
++++ b/api/server.js
+@@ -213,13 +213,15 @@ function handleCalculate(req, res) {
+         /* column letters match the original workbook sheet "Vypocet" */
+         F: r.F, G: r.G, H: r.H, I: r.I, J: r.J, K: r.K, L: r.L,
+         M: r.M, N: r.N, O: r.O, P: r.P, E: Math.round(r.E * 100) / 100,
++        nem: Math.round((r.nem || 0) * 100) / 100,
+         exempt: Math.round((r.exempt || 0) * 100) / 100
+       };
+     });
+ 
+     const totals = Payroll.calcTotals(days);
+-    /* sick-pay compensation is taxed but not insured */
+-    const netEstimate = Payroll.calcNetto(totals.E, totals.E - totals.exempt);
++    /* sick-pay compensation (DPN náhrada) is paid outside the gross — not taxed,
++     * not insured, added straight to the payout (payslip 08/2026 verified) */
++    const netEstimate = Payroll.calcNetto(totals.E) + totals.nem;
+ 
+     sendJson(res, 200, {
+       year: year,
+diff --git a/js/app.js b/js/app.js
+index d2c378d..5d212df 100644
+--- a/js/app.js
++++ b/js/app.js
+@@ -260,15 +260,21 @@
+   /* ============ Summary & breakdown ============ */
+   function renderSummary(results) {
+     const gross = results.reduce(function (a, r) { return a + r.E; }, 0);
+-    const hours = results.reduce(function (a, r) { return a + r.F; }, 0);
+-    /* sick-pay compensation is taxed but not insured — netto needs the split */
+-    const exempt = results.reduce(function (a, r) { return a + (r.exempt || 0); }, 0);
++    /* worked hours = actually worked shifts only (den/noc/pulden) — matches the
++     * payslip's "Odpracováno hodin": sick and vacation hours are NOT odpracované */
++    const hours = results.reduce(function (a, r, i) {
++      const t = state.shifts[i] ? state.shifts[i].type : "volno";
++      return a + ((t === "den" || t === "noc" || t === "pulden") ? r.F : 0);
++    }, 0);
++    /* sick-pay compensation (náhrada při DPN) is paid fully outside the gross —
++     * not taxed, not insured, simply added to the payout (payslip 08/2026) */
++    const nem = results.reduce(function (a, r) { return a + (r.nem || 0); }, 0);
+     /* worked days: full shifts count 1, a poludnevka counts 0.5 (16,5 dne style) */
+     const workedDays = state.shifts.reduce(function (a, d) {
+       return a + (d.type === "den" || d.type === "noc" ? 1 : (d.type === "pulden" ? 0.5 : 0));
+     }, 0);
+     document.getElementById("sumGross").textContent = I18n.fmtMoney(gross);
+-    document.getElementById("sumNet").textContent = I18n.fmtMoney(Payroll.calcNetto(gross, gross - exempt));
++    document.getElementById("sumNet").textContent = I18n.fmtMoney(Payroll.calcNetto(gross) + nem);
+     document.getElementById("sumHours").textContent = I18n.fmtHours(hours);
+     document.getElementById("sumDays").textContent = I18n.fmtNum(workedDays) + " " + I18n.plural(workedDays, I18n.t("daysForms"));
+   }
+@@ -287,7 +293,11 @@
+       const date = new Date(state.year, state.month, i + 1);
+       const shift = state.shifts[i];
+       const isNahr = !!r.isHolidayShift && shift.holidayWork === false;
++      /* sick compensation lives in r.nem (outside gross) — show it in the
++       * náhrady column and the day total so sick days don't display 0 Kč */
++      const dispO = r.O + (r.nem || 0), dispE = r.E + (r.nem || 0);
+       Object.keys(totals).forEach(function (k) { totals[k] += r[k]; });
++      totals.O += (r.nem || 0); totals.E += (r.nem || 0);
+       const typeLabel = I18n.t("type_" + shift.type) +
+         (isNahr ? I18n.t("nahrSuffix") : (shift.overtime ? I18n.t("otSuffix") : ""));
+       rows += '<tr class="' + (r.isWeekend ? "wknd" : "") + (isNahr ? " nahr" : "") + '">' +
+@@ -303,9 +313,9 @@
+         '<td class="tabular">' + I18n.fmtMoney(r.L) + "</td>" +
+         '<td class="tabular">' + I18n.fmtMoney(r.M) + "</td>" +
+         '<td class="tabular">' + I18n.fmtMoney(r.N) + "</td>" +
+-        '<td class="tabular">' + I18n.fmtMoney(r.O) + "</td>" +
++        '<td class="tabular">' + I18n.fmtMoney(dispO) + "</td>" +
+         '<td class="tabular">' + I18n.fmtMoney(r.P) + "</td>" +
+-        '<td class="tabular">' + I18n.fmtMoney(r.E) + "</td>" +
++        '<td class="tabular">' + I18n.fmtMoney(dispE) + "</td>" +
+         "</tr>";
+     });
+     rows += '<tr class="total-row"><td>' + I18n.esc(I18n.t("totalRow")) + "</td><td></td><td></td>" +
+@@ -335,8 +345,8 @@
+       if (r.isHolidayShift && r.holidayWork === false) agg.nahrSvat += r.J;
+       else { agg.casova += r.J; agg.casovaH += s.baseRate ? r.J / s.baseRate : 0; }
+       agg.K += r.K; agg.G += r.G; agg.L += r.L; agg.H += r.H; agg.M += r.M; agg.N += r.N;
+-      agg.nem += r.exempt || 0;
+-      agg.dov += r.O - (r.exempt || 0);
++      agg.nem += r.nem || 0; /* DPN náhrada — outside gross, paid net (08/2026) */
++      agg.dov += r.O;
+       agg.P += r.P; agg.E += r.E;
+     });
+ 
+@@ -362,7 +372,10 @@
+       document.getElementById(el).innerHTML = html;
+     }
+ 
+-    const det = Payroll.calcNettoDetail(agg.E, agg.E - agg.nem);
++    /* náhrada za nemoc is outside gross/tax/insurance — deductions run on the
++     * gross alone, the compensation is added to the payout afterwards */
++    const det = Payroll.calcNettoDetail(agg.E, agg.E);
++    const netOut = det.net + agg.nem;
+     rows("psEarnings", I18n.t("psEarnings"), [
+       { label: I18n.t("psTimeWage"), h: agg.casovaH, val: agg.casova },
+       agg.nahrSvat ? { label: I18n.t("psNahrHoliday"), val: agg.nahrSvat } : null,
+@@ -379,9 +392,9 @@
+       { label: I18n.t("psSocial"), val: det.socialni },
+       { label: I18n.t("psHealth"), val: det.zdrav },
+       { label: I18n.t("psTax"), val: det.dan }
+-    ], "psNet", det.net);
++    ], "psNet", netOut);
+ 
+-    document.getElementById("psNetLine").textContent = I18n.t("psNet") + ": " + I18n.fmtMoney(det.net);
++    document.getElementById("psNetLine").textContent = I18n.t("psNet") + ": " + I18n.fmtMoney(netOut);
+   }
+ 
+   /* ============ Render ============ */
+diff --git a/js/calendar.js b/js/calendar.js
+index 0ca852d..234cae3 100644
+--- a/js/calendar.js
++++ b/js/calendar.js
+@@ -230,7 +230,9 @@
+     cell.appendChild(el("span", "num", String(day + 1)));
+     cell.appendChild(el("span", "chip", isNahr ? I18n.t("ts_nahr") : I18n.t("ts_" + entry.type)));
+     if (res.holidayName) cell.appendChild(el("span", "hol", res.holidayName));
+-    cell.appendChild(el("span", "amt tabular", res.E ? I18n.fmtMoney(res.E) : "–"));
++    /* sick days earn 0 gross but still pay the DPN náhrada (r.nem) */
++    const amt = (res.E || 0) + (res.nem || 0);
++    cell.appendChild(el("span", "amt tabular", amt ? I18n.fmtMoney(amt) : "–"));
+     if (entry.overtime && !isNahr) cell.appendChild(el("span", "ot-mark", "⚡"));
+   }
+ 
+diff --git a/js/locales.js b/js/locales.js
+index 2f3cdc8..90e9b7c 100644
+--- a/js/locales.js
++++ b/js/locales.js
+@@ -127,7 +127,7 @@
+       psOvertime: "Příplatek přesčas (overtime) 25 % PHV",
+       psHolidaySup: "Příplatek svátek (holiday worked)",
+       psVacation: "Dovolená / náhrady (vacation & comp.)",
+-      psSick: "Náhrada mzdy — nemoc (sick pay, 60 %)",
++      psSick: "Náhrada mzdy — nemoc (sick pay 60 %, paid net, outside gross)",
+       psBonus: "Pracovní odměna (attendance bonus)",
+       psGross: "Hrubá mzda (gross)",
+       psDeductions: "Deductions",
+@@ -291,7 +291,7 @@
+       psOvertime: "Příplatek přesčas (переработка) 25 % PHV",
+       psHolidaySup: "Příplatek svátek (праздник — работал)",
+       psVacation: "Dovolená / náhrady (отпуск / компенсации)",
+-      psSick: "Náhrada mzdy — nemoc (больничный, 60 %)",
++      psSick: "Náhrada mzdy — nemoc (больничный 60 %, чистыми, вне brutto)",
+       psBonus: "Pracovní odměna (дохазковый бонус)",
+       psGross: "Hrubá mzda (начислено)",
+       psDeductions: "Srážky (удержания)",
+@@ -455,7 +455,7 @@
+       psOvertime: "Příplatek přesčas (переробка) 25 % PHV",
+       psHolidaySup: "Příplatek svátek (свято — працював)",
+       psVacation: "Dovolená / náhrady (відпустка / компенсації)",
+-      psSick: "Náhrada mzdy — nemoc (лікарняний, 60 %)",
++      psSick: "Náhrada mzdy — nemoc (лікарняний 60 %, чистими, поза brutto)",
+       psBonus: "Pracovní odměna (бонус за відвідуваність)",
+       psGross: "Hrubá mzda (нараховано)",
+       psDeductions: "Srážky (утримання)",
+@@ -619,7 +619,7 @@
+       psOvertime: "Příplatek za přesčas 25 % PHV",
+       psHolidaySup: "Příplatek za práci ve svátek",
+       psVacation: "Dovolená / náhrady",
+-      psSick: "Náhrada mzdy — nemoc (60 %)",
++      psSick: "Náhrada mzdy — nemoc (60 %, mimo hrubou mzdu)",
+       psBonus: "Pracovní odměna",
+       psGross: "Hrubá mzda",
+       psDeductions: "Srážky",
+@@ -783,7 +783,7 @@
+       psOvertime: "Příplatek přesčas (nadgodziny) 25 % PHV",
+       psHolidaySup: "Příplatek svátek (święto — praca)",
+       psVacation: "Dovolená / náhrady (urlop / ekwiwalenty)",
+-      psSick: "Náhrada mzdy — nemoc (chorobowe, 60 %)",
++      psSick: "Náhrada mzdy — nemoc (chorobowe 60 %, netto, poza brutto)",
+       psBonus: "Pracovní odměna (premia frekwencyjna)",
+       psGross: "Hrubá mzda (brutto)",
+       psDeductions: "Srážky (potrącenia)",
+diff --git a/js/payroll.js b/js/payroll.js
+index 018eb3f..289d93e 100644
+--- a/js/payroll.js
++++ b/js/payroll.js
+@@ -201,14 +201,18 @@
+ 
+     /* Sick day (DPN, first 14 calendar days): the employer pays 60 % of the
+      * reduced PHV for the missed shift's hours (§ 192 ZP). No supplements, no
+-     * attendance bonus; holidays ignored. The compensation is TAXABLE but NOT
+-     * subject to social/health insurance — carried out via `exempt`. */
++     * attendance bonus; holidays ignored. Adecco books this compensation fully
++     * OUTSIDE the gross: not in hrubá mzda, no SP/ZP insurance, not even taxed —
++     * it is simply added to the payout. Verified to the crown on payslip
++     * 08/2026 (PHV 237.18): Náhrada Prac.nesch. 19,34 h -> 2 477 Kč paid net,
++     * gross 36 831 excludes it, daň 2 965 = 15 % of 36 900 − 2 570,
++     * K výplatě 32 069 = 36 831 − 7 239 + 2 477. Carried out via `nem`. */
+     if (isNem) {
+       const F = s.dayPaidHours; /* day and night shifts are both 9.6667 h */
+-      const O = 0.6 * reducePhv(s.phvRate) * F;
++      const NEM = 0.6 * reducePhv(s.phvRate) * F;
+       return {
+-        F: F, G: 0, H: 0, I: "-", J: 0, K: 0, L: 0, M: 0, N: 0, O: O, P: 0, E: O,
+-        exempt: O, isWeekend: isWeekend(date), holidayName: null,
++        F: F, G: 0, H: 0, I: "-", J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0,
++        nem: NEM, exempt: 0, isWeekend: isWeekend(date), holidayName: null,
+         isHolidayShift: false, holidayWork: true
+       };
+     }
+@@ -242,7 +246,7 @@
+       const O = isPul ? F * s.phvRate : 0;
+       return {
+         F: F, G: 0, H: 0, I: "NÁH", J: J, K: 0, L: 0, M: 0, N: 0, O: O, P: 0, E: J + O,
+-        exempt: 0, isWeekend: isWeekend(date), holidayName: holidayMap.get(dk) || null,
++        nem: 0, exempt: 0, isWeekend: isWeekend(date), holidayName: holidayMap.get(dk) || null,
+         isHolidayShift: true, holidayWork: false
+       };
+     }
+@@ -289,7 +293,7 @@
+     const E = J + K + L + M + N + O + P;
+     return {
+       F: F, G: G, H: H, I: I, J: J, K: K, L: L, M: M, N: N, O: O, P: P, E: E,
+-      exempt: 0, isWeekend: isWeekend(date), holidayName: onHoliday ? holidayMap.get(dk) : null,
++      nem: 0, exempt: 0, isWeekend: isWeekend(date), holidayName: onHoliday ? holidayMap.get(dk) : null,
+       isHolidayShift: isHolidayShift, holidayWork: holidayWork
+     };
+   }
+@@ -341,7 +345,7 @@
+ 
+   /** Sum a per-day result array into month totals (column letters again). */
+   function calcTotals(results) {
+-    const totals = { F: 0, G: 0, H: 0, J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0, exempt: 0 };
++    const totals = { F: 0, G: 0, H: 0, J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0, nem: 0, exempt: 0 };
+     results.forEach(function (r) {
+       Object.keys(totals).forEach(function (k) { totals[k] += (r[k] || 0); });
+     });
+diff --git a/test-calibration.js b/test-calibration.js
+index 1b42f69..65a6be9 100644
+--- a/test-calibration.js
++++ b/test-calibration.js
+@@ -51,16 +51,38 @@ const pulQ3 = day(2026, 7, 8, "pulden", {}, S3);
+ ok(close(pulQ3.E, 4.8333 * 218 * 1.1 + 4.8333 * 246.06, 0.1),
+   "pulden Q3: E=" + pulQ3.E.toFixed(2) + " (base half x1.1 attendance + PHV half)");
+ 
+-/* --- 5. Nemoc: 60 % of reduced PHV, insured-exempt --- */
++/* --- 5. Nemoc: 60 % of reduced PHV, paid fully outside the gross (08/2026) --- */
+ ok(close(Payroll.reducePhv(350), 295.734, 0.001), "reducePhv(350)=295.734 (official example)");
+ ok(close(Payroll.reducePhv(246.06), 221.454, 0.001), "reducePhv(246.06)=221.454 (all in band 1, x0.9)");
+ const nem = day(2026, 7, 9, "nemoc", {}, S3);
+ ok(nem.J === 0 && nem.K === 0 && nem.L === 0 && nem.M === 0 && nem.N === 0 && nem.P === 0,
+   "nemoc: no base pay, no supplements");
+-ok(close(nem.O, 0.6 * 221.454 * 9.6667, 0.1) && nem.exempt === nem.O && nem.E === nem.O,
+-  "nemoc O=E=exempt=" + nem.O.toFixed(2));
+-ok(Payroll.calcNetto(nem.O, 0) === Math.max(0, nem.O - Math.max(0, Payroll.round0(Math.ceil(nem.O / 100) * 100 * 0.15) - 2570)),
+-  "nemoc compensation: taxed, zero SP/ZP");
++ok(nem.E === 0 && nem.O === 0 && close(nem.nem, 0.6 * 221.454 * 9.6667, 0.1),
++  "nemoc: E=O=0, nem (netto náhrada)=" + nem.nem.toFixed(2));
++const nemTotals = Payroll.calcTotals([nem]);
++ok(nemTotals.E === 0 && close(nemTotals.nem, nem.nem, 0.001),
++  "nemoc: totals E=0 (gross untouched), náhrada carried in nem");
++
++/* --- 5b. Colleague payslip 08/2026 (PHV 237.18): gross EXCLUDES náhrada --- */
++const SC = Object.assign({}, Payroll.DEFAULT_SETTINGS, { baseRate: 218, phvRate: 237.18 });
++const cal8 = {};
++[2, 3, 4, 5, 9, 10, 11, 16, 17, 18, 19].forEach(function (d) { cal8[d] = "noc"; });
++cal8[12] = "pulden"; [23, 24, 30, 31].forEach(function (d) { cal8[d] = "den"; });
++cal8[25] = "nemoc"; cal8[26] = "nemoc";
++const res8 = Object.keys(cal8).map(function (d) { return day(2026, 8, +d, cal8[d], {}, SC); });
++const t8 = Payroll.calcTotals(res8);
++const nemSum8 = res8.reduce(function (a, r) { return a + r.nem; }, 0);
++ok(close(t8.J, 32663, 0.8), "08/2026 časová mzda 32 663 (149,83 h x 218) — ours " + t8.J.toFixed(2));
++ok(close(t8.L, 850, 0.6), "08/2026 víkend 850 (35,83 h) — ours " + t8.L.toFixed(2));
++ok(close(t8.K, 1498, 20.5), "08/2026 noční 1 498 (63,17 h) — ours " + t8.K.toFixed(2) + " (night-window ~20 Kč)");
++ok(close(nemSum8, 2477, 1.0), "08/2026 náhrada DPN 2 477 (19,34 h, 60 % reduced PHV) — ours " + nemSum8.toFixed(2));
++ok(close(t8.O, 1146, 0.6), "08/2026 dovolená 1 146 (4,83 h) — ours " + t8.O.toFixed(2));
++/* gross = 32 663 + 850 + 1 498 + 674 odměna + 1 146 = 36 831 WITHOUT náhrada;
++ * net = gross − SP 2 616 − ZP 1 658 − daň 2 965 + náhrada 2 477 = 32 069 */
++const gross8 = t8.J + t8.L + t8.K + 674 + t8.O;
++ok(close(gross8, 36831, 20.5), "08/2026 hrubá mzda 36 831 (odměna 674 fixed) — ours " + gross8.toFixed(2));
++const net8 = Payroll.calcNetto(gross8) + nemSum8;
++ok(close(net8, 32069, 20.5), "08/2026 čistá mzda 32 069 — ours " + net8.toFixed(2));
+ 
+ /* --- 6. attendance bonus: 10 % formula + fixed override --- */
+ const den10 = day(2026, 7, 6, "den", {}, S3); /* default attendanceBonusPct = 10 % */
+-- 
+2.39.5
+
