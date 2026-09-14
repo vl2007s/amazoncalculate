@@ -116,6 +116,7 @@
       <span><i style="background:var(--half-bg); border:1px solid var(--half-line)"></i><span data-i18n="legendHalf">Half-day — ½ shift + ½ paid vacation</span></span>
       <span><i style="background:var(--sick-bg); border:1px solid var(--sick-line)"></i><span data-i18n="legendSick">Sick — 60 % from employer (first 14 days)</span></span>
       <span><i style="background:var(--prek-bg); border:1px solid var(--prek-line)"></i><span data-i18n="legendPrek">Doctor — ½ shift from PHV, ½ unpaid (propustka)</span></span>
+      <span><i style="background:var(--abs-bg); border:1px solid var(--abs-line)"></i><span data-i18n="legendNeplac">Unpaid day — 0 Kč, out of the attendance fond</span></span>
       <span><i style="background:var(--danger-bg); border:1px solid var(--danger-line)"></i><span data-i18n="legendHoliday">Public holiday — auto bonus</span></span>
       <span><i class="lg-nahr" style="border:2px dashed var(--danger-text)"></i><span data-i18n="legendNahr">Holiday not worked (paid)</span></span>
       <span data-i18n="legendOvertime">☑ Overtime = +25 % on top of the shift</span>
@@ -137,6 +138,8 @@
       <div class="settings-grid" id="settingsGrid"></div>
       <div class="settings-actions">
         <button class="btn ghost" id="btnResetDefaults" data-i18n="resetDefaults">Restore company default rates</button>
+        <button class="btn ghost" id="btnResetForecast" data-i18n="resetForecast">Reset auto-fill (all months)</button>
+        <button class="btn ghost" id="btnResetMonth" data-i18n="resetMonth">Clear current month</button>
         <button class="btn primary" id="btnPrint" data-i18n="printBtn">🖨 Print / save as PDF</button>
       </div>
     </div>

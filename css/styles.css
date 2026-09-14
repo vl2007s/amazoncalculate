@@ -16,6 +16,7 @@
   --half-bg:#E0F2F1; --half-text:#00695C; --half-line:#B2DFDB;
   --sick-bg:#FCE4EC; --sick-text:#AD1457; --sick-line:#F8BBD0;
   --prek-bg:#EFE9F7; --prek-text:#5B4B8A; --prek-line:#C9BBE3;
+  --abs-bg:#ECEFF1; --abs-text:#546E7A; --abs-line:#B0BEC5;
   --radius-sm:6px; --radius-md:8px; --radius-lg:12px;
   --shadow-card: 0 1px 2px rgba(15,17,17,.1), 0 1px 0 rgba(15,17,17,.04);
   --shadow-pop: 0 8px 24px rgba(15,17,17,.18);
@@ -42,6 +43,7 @@ html[data-theme="dark"]{
   --half-bg:rgba(0,150,136,.16); --half-text:#80CBC4; --half-line:rgba(128,203,196,.30);
   --sick-bg:rgba(216,27,96,.14); --sick-text:#F48FB1; --sick-line:rgba(244,143,177,.30);
   --prek-bg:rgba(126,87,194,.16); --prek-text:#B39DDB; --prek-line:rgba(179,157,219,.35);
+  --abs-bg:rgba(120,144,156,.18); --abs-text:#90A4AE; --abs-line:rgba(144,164,174,.35);
 }
 /* ink-900 turns near-black in dark — the totals divider must flip to the (now light) text color */
 html[data-theme="dark"] table.breakdown tr.total-row td{border-top-color:var(--text-900);}
@@ -166,6 +168,7 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .brush-chip.t-pulden{background:var(--half-bg); color:var(--half-text); border-color:var(--half-line);}
 .brush-chip.t-nemoc{background:var(--sick-bg); color:var(--sick-text); border-color:var(--sick-line);}
 .brush-chip.t-prek{background:var(--prek-bg); color:var(--prek-text); border-color:var(--prek-line);}
+.brush-chip.t-neplac{background:var(--abs-bg); color:var(--abs-text); border-color:var(--abs-line);}
 .brush-chip:hover{filter:brightness(.97);}
 .brush-chip.sel{outline:2px solid var(--ink-900); outline-offset:1px;}
 .brush-ot{display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--text-900);}
@@ -214,6 +217,8 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .cal-day.t-svatek .chip{background:var(--surface-0); color:var(--danger-text); border:1px solid var(--danger-line);}
 .cal-day.t-pulden{background:var(--half-bg); border-color:var(--half-line);}
 .cal-day.t-pulden .chip{background:var(--surface-0); color:var(--half-text); border:1px solid var(--half-line);}
+.cal-day.t-neplac{background:var(--abs-bg); border-color:var(--abs-line);}
+.cal-day.t-neplac .chip{background:var(--surface-0); color:var(--abs-text); border:1px solid var(--abs-line);}
 .cal-day.t-prek{background:var(--prek-bg); border-color:var(--prek-line);}
 .cal-day.t-prek .chip{background:var(--surface-0); color:var(--prek-text); border:1px solid var(--prek-line);}
 .cal-day.t-nemoc{background:var(--sick-bg); border-color:var(--sick-line);}
@@ -268,6 +273,7 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .pop-opt .dot.t-pulden{background:var(--half-bg); border-color:var(--half-line);}
 .pop-opt .dot.t-nemoc{background:var(--sick-bg); border-color:var(--sick-line);}
 .pop-opt .dot.t-prek{background:var(--prek-bg); border-color:var(--prek-line);}
+.pop-opt .dot.t-neplac{background:var(--abs-bg); border-color:var(--abs-line);}
 .pop-opt .opt-label{flex:1;}
 .pop-opt .check{color:var(--accent-600); font-weight:800;}
 .pop-sep{height:1px; background:var(--surface-200); margin:7px 2px;}

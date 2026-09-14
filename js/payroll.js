@@ -75,9 +75,9 @@
    * shifts saved by the old version still calculate the same; the UI no longer
    * offers it — holidays are detected from the calendar automatically.
    */
-  const SHIFT_TYPES = ["volno", "den", "noc", "dovolena", "svatek", "pulden", "nemoc", "prek"];
+  const SHIFT_TYPES = ["volno", "den", "noc", "dovolena", "svatek", "pulden", "nemoc", "prek", "neplac"];
   /** Types shown in pickers (svatek handled automatically). */
-  const WORK_TYPES = ["volno", "den", "noc", "pulden", "dovolena", "nemoc", "prek"];
+  const WORK_TYPES = ["volno", "den", "noc", "pulden", "dovolena", "nemoc", "prek", "neplac"];
 
   /* ---------- date helpers ---------- */
 
@@ -197,7 +197,8 @@
 
     const isDen = type === "den", isNoc = type === "noc", isDov = type === "dovolena",
       isSva = type === "svatek", isVolno = type === "volno",
-      isPul = type === "pulden", isNem = type === "nemoc", isPrek = type === "prek";
+      isPul = type === "pulden", isNem = type === "nemoc", isPrek = type === "prek",
+      isNep = type === "neplac";
     const nextDate = addDays(date, 1);
     const dk = dateKey(date), ndk = dateKey(nextDate);
     const onHoliday = holidayMap.has(dk), nextOnHoliday = holidayMap.has(ndk);
@@ -220,14 +221,28 @@
       };
     }
 
+    /* Unpaid full-day absence (neplacené volno): 0 Kč, nothing counted; the
+     * day leaves the fond used for the attendance SHARE (payslip 06/2026:
+     * Neodpracované 9,67 h -> 0, fond for the share 174,01 - 9,67 = 164,34,
+     * counted 164,34 -> 100 % -> 10 % odměna 3 793 on the FULL fond base). */
+    if (isNep) {
+      return {
+        F: 0, G: 0, H: 0, I: "-", J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0,
+        nem: 0, exempt: 0, isWeekend: isWeekend(date), holidayName: null,
+        isHolidayShift: false, holidayWork: true
+      };
+    }
+
     /* Doctor visit with a propustka (překážky v práci dle § 209 ZP): Adecco
      * books the missed shift as half PAID at the full PHV (inside the gross —
      * taxed and insured, like vacation náhrada) and half UNPAID. Payslip
      * 08/2026 (Simonov): Překážky dle ZP 4,83 h -> 1 188 Kč inside hrubá mzda,
      * Neodpracované hodiny 6,22 -> 0 Kč (= the unpaid half 4,83 + lateness). */
     if (isPrek) {
-      const half = s.dayPaidHours / 2;
-      const O = round4(half * s.phvRate);
+      /* half day by default (08/2026: 4,83 h -> 1 188); a full-day documented
+       * obstacle pays the whole shift (06/2026: 9,67 h -> 2 108) */
+      const prekHours = opts.prekFull ? s.dayPaidHours : s.dayPaidHours / 2;
+      const O = round4(prekHours * s.phvRate);
       return {
         F: 0, G: 0, H: 0, I: "-", J: 0, K: 0, L: 0, M: 0, N: 0, O: O, P: 0, E: O,
         nem: 0, exempt: 0, isWeekend: isWeekend(date), holidayName: null,
@@ -375,27 +390,32 @@
    *  pattern); 0/null -> fall back to the painted scheduled days */
   function attendanceInfo(results, shifts, s, fondDays) {
     const shiftH = s.dayPaidHours;
-    let counted = 0, paintedFond = 0;
+    let counted = 0, paintedFond = 0, unpaidDays = 0;
     results.forEach(function (r, i) {
-      const t = shifts[i] ? shifts[i].type : "volno";
+      const sh = shifts[i] || {};
+      const t = sh.type || "volno";
       if (t === "den" || t === "noc") counted += r.F; /* net of lateness */
       else if (t === "pulden") counted += r.F + shiftH / 2; /* worked half + vacation half */
       else if (t === "dovolena" || t === "svatek") counted += shiftH;
-      else if (t === "prek") counted += shiftH / 2; /* paid half of the doctor day counts */
+      else if (t === "prek") counted += sh.prekFull ? shiftH : shiftH / 2; /* paid doctor hours count */
+      else if (t === "neplac") unpaidDays++; /* full unpaid day leaves the share fond */
       /* nemoc: stays in the fond but is never counted (unplanned absence) */
+      /* lateness / partial unpaid hours never touch the fond (user's rule,
+       * payslip 07/2026) — only FULL unpaid days do (06/2026) */
       if (t !== "volno") paintedFond += shiftH;
     });
-    /* lateness cuts ONLY the actual hours — the planned fond stays whole
-     * (user's rule; payslip 07/2026 proof: lateness 2,75 h, share 98,3 %) */
-    const fond = fondDays > 0 ? fondDays * shiftH : paintedFond;
-    const share = fond > 0 ? counted / fond : 1;
+    const fondPlan = fondDays > 0 ? fondDays * shiftH : paintedFond;
+    const fondShare = Math.max(0, fondPlan - unpaidDays * shiftH);
+    const share = fondShare > 0 ? counted / fondShare : 1;
     const pct = bonusTier(share);
-    /* bonus base = PLANNED fond hours x base rate — payslip proofs:
-     * 06/2026: 174,01 h x 218 x 10 % = 3 793 (exact)
+    /* bonus base = the FULL planned fond x base rate — payslip proofs:
+     * 06/2026: 174,01 h x 218 x 10 % = 3 793 (exact; the unpaid day only moved
+     *          the share's fond, not the base)
      * 07/2026: 164,34 h x 218 x 6 %  = 2 149 (exact) */
-    const amount = Math.floor(pct * fond * s.baseRate);
-    return { fond: fond, counted: counted, share: share, pct: pct, amount: amount };
+    const amount = Math.floor(pct * fondPlan * s.baseRate);
+    return { fond: fondShare, fondPlan: fondPlan, counted: counted, share: share, pct: pct, amount: amount };
   }
+
 
 
 
@@ -456,8 +476,11 @@
       let painted = 0;
       const weekSet = {};
       md.shifts.forEach(function (sh, i) {
-        /* predicted (auto-filled forecast) days never teach the pattern */
-        if (!sh.type || sh.type === "volno" || sh.predicted) return;
+        /* predicted (auto-filled forecast) days never teach the pattern;
+         * overtime days are EXTRA shifts outside the roster by definition —
+         * they must not join the weekday template either (otherwise two
+         * overtime Fridays turn a 4x3 roster into a garbage 5/2) */
+        if (!sh.type || sh.type === "volno" || sh.predicted || sh.overtime) return;
         const d = new Date(md.year, md.month, i + 1);
         wdCount[d.getDay()]++;
         painted++;

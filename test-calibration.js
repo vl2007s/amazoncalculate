@@ -340,5 +340,43 @@ ok(patMix && patMix.weekdays.indexOf(5) === -1 && patMix.weekdays.length === 4,
   ok(Math.abs(Payroll.calcNetto(t.E) - 34621) < 5, "čistá 34 621 — got " + Payroll.calcNetto(t.E).toFixed(1));
 }
 
+
+/* 19. Payslips 05/2026 and 06/2026 — aggregate verification.
+ * 06/2026 is the key: full-day překážky (9,67 h -> 2 108 at PHV 218) +
+ * full unpaid day (Neodpracované 9,67 -> 0). The unpaid day leaves the
+ * SHARE fond (174,01 - 9,67 = 164,34; counted 154,67 + 9,67 = 164,34 ->
+ * 100 % -> 10 %) but the bonus base stays the FULL fond:
+ * 174,01 x 218 x 10 % = 3 793 (exact). */
+{
+  const S6 = Object.assign({}, S, { baseRate: 218, phvRate: 218 });
+  const mk = function (n, type, opts) {
+    const a = []; for (let i = 0; i < n; i++) a.push(Object.assign({ type: type, overtime: false, holidayWork: true, lateHours: 0 }, opts || {}));
+    return a;
+  };
+  /* 16 worked days (13 of them nights, 1 overtime) + 1 full prek + 1 neplac = 18 fond days */
+  const sh6 = mk(13, "noc").concat(mk(2, "den"), mk(1, "den", { overtime: true }), mk(1, "prek", { prekFull: true }), mk(1, "neplac"));
+  const raw6 = sh6.map(function (s2, i) { return Payroll.calcDay(new Date(2026, 5, i + 1), s2.type, s2, S6, hol); });
+  const ai6 = Payroll.attendanceInfo(raw6, sh6, S6, 18);
+  ok(Math.abs(ai6.fond - 164.34) < 0.1 && Math.abs(ai6.fondPlan - 174.01) < 0.1,
+    "06/2026: share fond 164,34 (174,01 - 9,67 unpaid), plan fond whole — got " + ai6.fond.toFixed(2) + "/" + ai6.fondPlan.toFixed(2));
+  ok(Math.abs(ai6.counted - 164.34) < 0.1 && ai6.pct === 0.10,
+    "06/2026: counted 154,67+9,67 -> 100 % -> 10 % — got " + ai6.counted.toFixed(2) + "/" + ai6.pct);
+  ok(ai6.amount === 3793, "06/2026 odměna EXACT 3 793 (full fond base) — got " + ai6.amount);
+  const prekFull = raw6[16];
+  ok(Math.abs(prekFull.O - 218 * S6.dayPaidHours) < 0.01 && prekFull.F === 0,
+    "06/2026: full-day překážky = whole shift at PHV (2 108) — got " + prekFull.O.toFixed(2));
+  ok(raw6[17].E === 0 && raw6[17].F === 0, "06/2026: unpaid absence day pays nothing");
+  ok(Math.abs(Payroll.calcNetto(44607) - 35296) < 0.01, "06/2026 čistá 35 296 exact");
+  /* 05/2026: gross components 34 773 + 2 108 + 527 + 978 + 741 + 908 + 1 053;
+   * odměna 908 follows NO tier (partial first month?) -> fixed override */
+  ok(Math.abs(Payroll.calcNetto(41088) - 32726) < 0.01, "05/2026 čistá 32 726 exact");
+  const sh5 = mk(16, "den").concat(mk(1, "dovolena"));
+  const raw5 = sh5.map(function (s2, i) { return Payroll.calcDay(new Date(2026, 4, i + 1), s2.type, s2, S6, hol); });
+  const ai5 = Payroll.attendanceInfo(raw5, sh5, S6, 17);
+  const fixed5 = Payroll.withAttendanceBonus(raw5, sh5, Object.assign({}, S6, { bonusMonthKc: 908 }), 17);
+  ok(Math.abs(fixed5.reduce(function (a, r) { return a + r.P; }, 0) - 908) < 0.01,
+    "05/2026: odměna 908 via fixed override (tier formula would give " + ai5.amount + ")");
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

@@ -47,6 +47,8 @@
         overtime: !!s.overtime,
         holidayWork: s.holidayWork !== false,
         lateHours: (isFinite(late) && late > 0) ? late : 0,
+        /* doctor day: full-day documented obstacle pays the whole shift */
+        prekFull: !!s.prekFull,
         /* auto-filled forecast days are marked until the user touches them */
         predicted: !!s.predicted
       });
@@ -262,6 +264,43 @@
       renderAll();
     });
   }
+  /* --- reset buttons (settings panel) --- */
+  /* wipe every auto-filled (predicted) day in every stored month — the manual
+   * painting stays; the pattern then relearns from real days only */
+  document.getElementById("btnResetForecast").addEventListener("click", function () {
+    if (!confirm(I18n.t("resetForecastConfirm"))) return;
+    const prefix = "hpp_kalkulacka_shifts_";
+    try {
+      Object.keys(localStorage).forEach(function (k) {
+        if (k.indexOf(prefix) !== 0) return;
+        let arr;
+        try { arr = JSON.parse(localStorage.getItem(k)); } catch (e) { return; }
+        if (!Array.isArray(arr)) return;
+        let changed = false;
+        const out = arr.map(function (d) {
+          if (d && d.predicted) {
+            changed = true;
+            return { type: "volno", overtime: false, holidayWork: true, lateHours: 0, predicted: false };
+          }
+          return d;
+        });
+        if (changed) { try { localStorage.setItem(k, JSON.stringify(out)); } catch (e) { } }
+      });
+    } catch (e) { /* private mode */ }
+    location.reload();
+  });
+  /* clear the whole current month (stays blank — a stored empty month is
+   * never auto-filled again) */
+  document.getElementById("btnResetMonth").addEventListener("click", function () {
+    if (!confirm(I18n.t("resetMonthConfirm"))) return;
+    const dim = Payroll.daysInMonth(state.year, state.month);
+    const blank = [];
+    for (let i = 0; i < dim; i++) blank.push({ type: "volno", overtime: false, holidayWork: true, lateHours: 0, predicted: false });
+    state.shifts = blank;
+    persistAll();
+    renderAll();
+  });
+
   bindRateInput(rateBaseInput, "baseRate");
   bindRateInput(ratePhvInput, "phvRate");
   /* bonus-void toggle: warning letter / ADAPT this month voids the whole
@@ -519,9 +558,12 @@
       agg.K += r.K; agg.G += r.G; agg.L += r.L; agg.H += r.H; agg.M += r.M; agg.N += r.N;
       agg.nem += r.nem || 0; /* DPN náhrada — outside gross, paid net (08/2026) */
       agg.dov += (t === "prek") ? 0 : r.O;
-      if (t === "prek") { /* doctor/propustka: half paid from PHV (in gross), half unpaid */
-        agg.prek += r.O; agg.prekH += s.dayPaidHours / 2; agg.neodp += s.dayPaidHours / 2;
+      if (t === "prek") { /* doctor/propustka: paid from PHV (in gross); the unpaid half if half-day */
+        const full = !!state.shifts[i].prekFull;
+        agg.prek += r.O; agg.prekH += full ? s.dayPaidHours : s.dayPaidHours / 2;
+        if (!full) agg.neodp += s.dayPaidHours / 2;
       }
+      if (t === "neplac") agg.neodp += s.dayPaidHours; /* unpaid absence day */
       if (t === "den" || t === "noc" || t === "pulden") agg.neodp += Math.min(+state.shifts[i].lateHours || 0, s.dayPaidHours);
       agg.P += r.P; agg.E += r.E;
     });
@@ -653,6 +695,9 @@
           (state.shifts[idx].type === "den" || state.shifts[idx].type === "noc" || state.shifts[idx].type === "pulden")) {
           state.shifts[idx].holidayWork = !!patch.holidayWork;
         }
+        if (patch.prekFull !== undefined && state.shifts[idx].type === "prek") {
+          state.shifts[idx].prekFull = !!patch.prekFull;
+        }
         if (patch.lateHours !== undefined) {
           const lv = +patch.lateHours;
           state.shifts[idx].lateHours = (isFinite(lv) && lv > 0) ? Math.min(lv, 12) : 0;
@@ -670,6 +715,7 @@
           holidayWork: prev.holidayWork !== false,
           /* lateness survives repainting the same day */
           lateHours: prev.lateHours || 0,
+          prekFull: b.type === "prek" ? !!prev.prekFull : false,
           predicted: false
         };
         /* update the shared result for this day so the totals stay live while painting;

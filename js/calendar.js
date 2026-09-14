@@ -162,6 +162,20 @@
     ot.appendChild(document.createTextNode(I18n.t("overtime")));
     popover.appendChild(ot);
 
+    /* doctor day: half shift paid by default, toggle for a full-day obstacle */
+    if (entry.type === "prek") {
+      const pf = el("label", "pop-ot");
+      const pfc = document.createElement("input");
+      pfc.type = "checkbox";
+      pfc.checked = !!entry.prekFull;
+      pfc.addEventListener("change", function () {
+        ctx.onChange(dayIdx, { prekFull: pfc.checked });
+      });
+      pf.appendChild(pfc);
+      pf.appendChild(document.createTextNode(I18n.t("prekFullLabel")));
+      popover.appendChild(pf);
+    }
+
     /* lateness (pozdní příchod) — unpaid hours that also count against the
      * attendance bonus; only meaningful for real shifts */
     if (entry.type === "den" || entry.type === "noc" || entry.type === "pulden") {
