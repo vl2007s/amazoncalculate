@@ -69,6 +69,17 @@ Available in **Русский**, **Українська**, **English**, **Češt
   the "full day" option), the rest unpaid
 - Attendance bonus: tier % × **planned** fond × base rate, rounded down (see above)
 
+### Known simplifications (documented, intentional)
+
+- **DST** — a night shift across the clock-change night really lasts ±1 h; the model
+  (like the original Excel workbook) uses fixed 9.6667 h shifts
+- **Minimum health-insurance base** — months with massive unpaid leave may owe ZP
+  top-up to 13.5 % of the minimum wage; not modeled (DPN days are excluded from the
+  base, which makes exact modeling non-trivial). Expect up to ~900 Kč difference in
+  near-zero-gross months
+- **23 % tax bracket** — income above ~150 000 Kč/month is taxed at 23 %; only the
+  15 % bracket is modeled (irrelevant for the target audience)
+
 ## Quick start
 
 ### Frontend only (no server needed)
@@ -166,7 +177,8 @@ Body:
 }
 ```
 
-- `settings` is optional — any subset of the defaults can be overridden.
+- `settings` is optional — any subset of the defaults can be overridden, including
+  the boolean `"bonusVoid": true` (výtka/ADAPT — voids the whole attendance bonus).
 - `shifts` is an array of entries with:
   - `"type"`: `volno | den | noc | pulden | dovolena | svatek | nemoc | prek | neplac`
   - `"overtime"` (bool, `den`/`noc` only) — paid at base + 25 % of PHV

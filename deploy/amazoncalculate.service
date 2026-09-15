@@ -16,8 +16,12 @@ Environment=HOST=127.0.0.1
 Environment=PORT=3000
 # tells the rate limiter to trust the X-Real-IP header set by nginx
 Environment=TRUST_PROXY=1
-# privacy-friendly analytics: allows the Umami origin in the CSP (uncomment + set yours)
-#Environment=UMAMI_ORIGIN=https://analytics.example.com
+# privacy-friendly analytics: allows the Umami origin in the CSP.
+# index.html loads the tracker from analytics.plp.ink — without this variable
+# the CSP blocks both the script and the beacon and analytics silently dies.
+# Set to your own Umami origin if you self-host elsewhere; comment out only
+# together with removing the analytics <script> from index.html.
+Environment=UMAMI_ORIGIN=https://analytics.plp.ink
 ExecStart=/usr/bin/node api/server.js
 Restart=on-failure
 RestartSec=3

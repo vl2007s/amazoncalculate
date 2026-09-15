@@ -68,16 +68,17 @@ const rateHits = new Map();  /* ip -> { count, resetAt } */
 
 function rateLimited(ip) {
   const now = Date.now();
+  /* opportunistic cleanup BEFORE the branches — a flood of unique IPs must not
+   * grow the map without bound either */
+  if (rateHits.size > 5000) {
+    rateHits.forEach(function (v, k) { if (now > v.resetAt) rateHits.delete(k); });
+  }
   const hit = rateHits.get(ip);
   if (!hit || now > hit.resetAt) {
     rateHits.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
     return false;
   }
   hit.count += 1;
-  /* opportunistic cleanup so the map can't grow without bound */
-  if (rateHits.size > 5000) {
-    rateHits.forEach(function (v, k) { if (now > v.resetAt) rateHits.delete(k); });
-  }
   return hit.count > RATE_MAX;
 }
 
@@ -96,12 +97,17 @@ function sendJson(res, status, obj) {
 function readBody(req) {
   return new Promise(function (resolve, reject) {
     let size = 0;
+    let tooBig = false;
     const chunks = [];
     req.on("data", function (c) {
+      if (tooBig) return;           /* drain and discard — keep the socket alive */
       size += c.length;
       if (size > MAX_BODY) {
-        reject(new Error("Request body too large"));
-        req.destroy();
+        tooBig = true;
+        chunks.length = 0;
+        const err = new Error("Request body too large (max " + MAX_BODY + " bytes)");
+        err.statusCode = 413;
+        reject(err);
         return;
       }
       chunks.push(c);
@@ -153,6 +159,9 @@ function sanitizeSettings(input) {
     const v = input[f.key];
     if (typeof v === "number" && isFinite(v) && v >= 0) out[f.key] = v;
   });
+  /* boolean flags are not in SETTINGS_FIELDS (they live outside the numeric form)
+   * but the API must honor them exactly like the UI does */
+  if (typeof input.bonusVoid === "boolean") out.bonusVoid = input.bonusVoid;
   return out;
 }
 
@@ -174,7 +183,9 @@ function handleCalculate(req, res) {
 
     /* Normalize the shift list to exactly the days of the month. Unknown types fall
      * back to 'volno'; overtime and the holiday worked/stayed-home choice are only
-     * meaningful for den/noc — same rules as the UI. */
+     * meaningful for den/noc — same rules as the UI. lateHours and prekFull are
+     * carried over with the same clamps as payroll.js, so the API reproduces the
+     * UI exactly. */
     const n = Payroll.daysInMonth(year, month - 1);
     const shifts = [];
     for (let i = 0; i < n; i++) {
@@ -183,10 +194,14 @@ function handleCalculate(req, res) {
       const isWorkShift = type === "den" || type === "noc";
       /* the holiday worked/stayed-home choice also applies to a poludnevka */
       const canHoliday = isWorkShift || type === "pulden";
+      const canLate = isWorkShift || type === "pulden";
+      const lv = s ? +s.lateHours : 0;
       shifts.push({
         type: type,
         overtime: isWorkShift && !!(s && s.overtime),
-        holidayWork: canHoliday ? !(s && s.holidayWork === false) : false
+        holidayWork: canHoliday ? !(s && s.holidayWork === false) : false,
+        lateHours: canLate && isFinite(lv) && lv > 0 ? Math.min(lv, settings.dayPaidHours) : 0,
+        prekFull: type === "prek" && !!(s && s.prekFull)
       });
     }
 
@@ -211,6 +226,8 @@ function handleCalculate(req, res) {
         type: shift.type,
         overtime: shift.overtime,
         holidayWork: shift.holidayWork,
+        lateHours: shift.lateHours || 0,
+        prekFull: !!shift.prekFull,
         weekend: r.isWeekend,
         holiday: r.holidayName,
         /* column letters match the original workbook sheet "Vypocet" */
@@ -236,7 +253,7 @@ function handleCalculate(req, res) {
       netEstimate: netEstimate
     });
   }).catch(function (err) {
-    sendJson(res, 400, { error: err.message });
+    sendJson(res, err.statusCode || 400, { error: err.message });
   });
 }
 

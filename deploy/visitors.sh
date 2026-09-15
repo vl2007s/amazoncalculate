@@ -23,7 +23,8 @@ awk '
       count[parts[1]]++
       total[parts[2]] = 1
     }
-    for (d in count) print d, count[d] | "sort -t/ -k2.1,2.4n -k1.1,1.2n -k2.1,2.2n"
+    # date is dd/Mon/yyyy — sort by year, then month NAME (-k2M), then day
+    for (d in count) print d, count[d] | "sort -t/ -k3,3n -k2,2M -k1,1n"
     close("sort")
     uniq = 0
     for (ip in total) uniq++

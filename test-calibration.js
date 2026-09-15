@@ -378,5 +378,53 @@ ok(patMix && patMix.weekdays.indexOf(5) === -1 && patMix.weekdays.length === 4,
     "05/2026: odměna 908 via fixed override (tier formula would give " + ai5.amount + ")");
 }
 
+/* --- 20. Pulden + lateness: lateness cuts ONLY the worked half, never the
+ *     vacation half (náhrada mzdy is lateness-independent, like every PHV payment) --- */
+{
+  const Sp = Object.assign({}, S, { phvRate: 246.06 });
+  const halfH = S.dayPaidHours / 2;
+  const clean = day(2026, 7, 6, "pulden", {}, Sp);
+  const late2 = day(2026, 7, 6, "pulden", { lateHours: 2 }, Sp);
+  ok(close(clean.O, halfH * 246.06, 0.01) && close(clean.O, 1189.29, 0.01),
+    "pulden clean: vacation half O = 4,83h x PHV = 1 189,29 — got " + clean.O.toFixed(2));
+  ok(close(late2.F, halfH - 2, 0.001) && close(late2.J, (halfH - 2) * 218, 0.01),
+    "pulden late 2h: worked half cut (F=2,83, J=617,67) — got F=" + late2.F.toFixed(3) + " J=" + late2.J.toFixed(2));
+  ok(close(late2.O, clean.O, 0.001),
+    "pulden late 2h: vacation half UNTOUCHED (O stays 1 189,29, was 697,17) — got " + late2.O.toFixed(2));
+  const lateMax = day(2026, 7, 6, "pulden", { lateHours: 6 }, Sp);
+  ok(lateMax.F === 0 && lateMax.J === 0 && close(lateMax.O, 1189.29, 0.01),
+    "pulden late 6h: whole worked half gone, vacation half still paid in full — got O=" + lateMax.O.toFixed(2));
+  /* attendance: counted = worked net of lateness + full vacation half */
+  const shP = [{ type: "pulden", lateHours: 2 }];
+  const aiP = Payroll.attendanceInfo([late2], shP, Sp, 1);
+  ok(close(aiP.counted, (halfH - 2) + halfH, 0.01),
+    "pulden late 2h: attendance counts " + (halfH - 2).toFixed(2) + " + " + halfH.toFixed(2) + " = 7,67 — got " + aiP.counted.toFixed(2));
+  /* dovolena unaffected by the change (lateness never applies to it) */
+  const dov = day(2026, 7, 6, "dovolena", { lateHours: 3 }, Sp);
+  ok(close(dov.O, S.dayPaidHours * 246.06, 0.01),
+    "dovolena: full-shift náhrada regardless of lateHours — got " + dov.O.toFixed(2));
+}
+
+/* --- 21. Code-review fixes: fixed bonus skips náhrada days; an undistributable
+ *     bonus shows 0; totals rounded to haléře --- */
+{
+  const Sb = Object.assign({}, S, { phvRate: 246.06 });
+  const worked = day(2026, 7, 7, "den", {}, Sb);              /* plain Tuesday */
+  const nah = day(2026, 7, 6, "den", { holidayWork: false }, Sb); /* Jan Hus — stayed home */
+  ok(nah.isHolidayShift && nah.holidayWork === false && nah.J > 0,
+    "21: náhrada day pays J from PHV (" + nah.J.toFixed(2) + ") without working");
+  const mb = Payroll.withMonthlyBonus([worked, nah], 1000);
+  ok(close(mb[0].P, 1000, 0.001) && mb[1].P === 0,
+    "21: fixed 1 000 goes whole to the worked day, náhrada day gets 0 (was 500/500) — got " +
+    mb[0].P.toFixed(2) + "/" + mb[1].P.toFixed(2));
+  const dovs = [day(2026, 7, 7, "dovolena", {}, Sb), day(2026, 7, 8, "dovolena", {}, Sb)];
+  const aiD = Payroll.attendanceInfo(dovs, [{ type: "dovolena" }, { type: "dovolena" }], Sb, 0);
+  ok(aiD.pct === 0.10 && aiD.amount === 0,
+    "21: pure-dovolena month — tier 10 % but amount 0 (nothing to distribute) — got " + aiD.amount);
+  const tot = Payroll.calcTotals([{ E: 418.00000000000017, J: 210.00000000000006 }]);
+  ok(tot.E === 418 && tot.J === 210,
+    "21: calcTotals rounds every column to haléře — got " + tot.E + "/" + tot.J);
+}
+
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

@@ -25,10 +25,22 @@
     try {
       const raw = localStorage.getItem(LS_SETTINGS);
       if (!raw) return { ...Payroll.DEFAULT_SETTINGS };
-      return { ...Payroll.DEFAULT_SETTINGS, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      const out = { ...Payroll.DEFAULT_SETTINGS };
+      if (parsed && typeof parsed === "object") {
+        /* validate like the server's sanitizeSettings: only known numeric fields,
+         * finite and non-negative — a corrupt localStorage must not produce
+         * "NaN Kč" months or negative náhrady */
+        Payroll.SETTINGS_FIELDS.forEach(function (f) {
+          const v = parsed[f.key];
+          if (typeof v === "number" && isFinite(v) && v >= 0) out[f.key] = v;
+        });
+        if (typeof parsed.bonusVoid === "boolean") out.bonusVoid = parsed.bonusVoid;
+      }
+      return out;
     } catch (e) { return { ...Payroll.DEFAULT_SETTINGS }; }
   }
-  function saveSettings(s) { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(s)); } catch (e) { } }
+  function saveSettings(s) { try { localStorage.setItem(LS_SETTINGS, JSON.stringify(s)); return true; } catch (e) { return false; } }
 
   /* Shift arrays are stored per month; tolerate truncated/corrupt entries by
    * normalizing every slot into a valid {type, overtime, holidayWork} triple.
@@ -123,7 +135,7 @@
     return Payroll.detectPattern(monthsData);
   }
   function saveShifts(year, month, shifts) {
-    try { localStorage.setItem(lsShiftsKey(year, month), JSON.stringify(shifts)); } catch (e) { }
+    try { localStorage.setItem(lsShiftsKey(year, month), JSON.stringify(shifts)); return true; } catch (e) { return false; }
   }
 
   /* ============ State ============ */
@@ -243,10 +255,14 @@
   }
 
   function persistAll() {
-    saveSettings(state.settings);
-    saveShifts(state.year, state.month, state.shifts);
-    try { localStorage.setItem(LS_NAME, state.name); } catch (e) { }
-    showSaved();
+    const okS = saveSettings(state.settings);
+    const okM = saveShifts(state.year, state.month, state.shifts);
+    let okN = true;
+    try { localStorage.setItem(LS_NAME, state.name); } catch (e) { okN = false; }
+    /* never claim "Saved" when the storage actually refused the write
+     * (quota exceeded / blocked storage) — warn instead */
+    if (okS && okM && okN) showSaved();
+    else showMsg(I18n.t("toastSaveError"));
   }
 
   function holidayMapFor(year) {
@@ -457,16 +473,22 @@
   function renderSummary(results) {
     const gross = results.reduce(function (a, r) { return a + r.E; }, 0);
     /* worked hours = actually worked shifts only (den/noc/pulden) — matches the
-     * payslip's "Odpracováno hodin": sick and vacation hours are NOT odpracované */
+     * payslip's "Odpracováno hodin": sick and vacation hours are NOT odpracované,
+     * and neither are náhrada days (holiday shift the employee stayed home for —
+     * those hours are compensation, not worked time on the payslip) */
     const hours = results.reduce(function (a, r, i) {
       const t = state.shifts[i] ? state.shifts[i].type : "volno";
-      return a + ((t === "den" || t === "noc" || t === "pulden") ? r.F : 0);
+      const nah = r.isHolidayShift && r.holidayWork === false;
+      return a + ((t === "den" || t === "noc" || t === "pulden") && !nah ? r.F : 0);
     }, 0);
     /* sick-pay compensation (náhrada při DPN) is paid fully outside the gross —
      * not taxed, not insured, simply added to the payout (payslip 08/2026) */
     const nem = results.reduce(function (a, r) { return a + (r.nem || 0); }, 0);
-    /* worked days: full shifts count 1, a poludnevka counts 0.5 (16,5 dne style) */
-    const workedDays = state.shifts.reduce(function (a, d) {
+    /* worked days: full shifts count 1, a poludnevka counts 0.5 (16,5 dne style);
+     * náhrada days (stayed home on a holiday) are not worked days */
+    const workedDays = state.shifts.reduce(function (a, d, i) {
+      const r = results[i] || {};
+      if (r.isHolidayShift && r.holidayWork === false) return a;
       return a + (d.type === "den" || d.type === "noc" ? 1 : (d.type === "pulden" ? 0.5 : 0));
     }, 0);
     document.getElementById("sumGross").textContent = I18n.fmtMoney(gross);
@@ -552,8 +574,9 @@
     const agg = { casova: 0, casovaH: 0, nahrSvat: 0, K: 0, G: 0, L: 0, H: 0, M: 0, N: 0, dov: 0, nem: 0, P: 0, E: 0, wDays: 0, prek: 0, prekH: 0, neodp: 0 };
     results.forEach(function (r, i) {
       const t = state.shifts[i] ? state.shifts[i].type : "volno";
-      agg.wDays += (t === "den" || t === "noc") ? 1 : (t === "pulden" ? 0.5 : 0);
-      if (r.isHolidayShift && r.holidayWork === false) agg.nahrSvat += r.J;
+      const nah = r.isHolidayShift && r.holidayWork === false; /* stayed home on holiday */
+      agg.wDays += nah ? 0 : ((t === "den" || t === "noc") ? 1 : (t === "pulden" ? 0.5 : 0));
+      if (nah) agg.nahrSvat += r.J;
       else { agg.casova += r.J; agg.casovaH += s.baseRate ? r.J / s.baseRate : 0; }
       agg.K += r.K; agg.G += r.G; agg.L += r.L; agg.H += r.H; agg.M += r.M; agg.N += r.N;
       agg.nem += r.nem || 0; /* DPN náhrada — outside gross, paid net (08/2026) */
@@ -564,7 +587,12 @@
         if (!full) agg.neodp += s.dayPaidHours / 2;
       }
       if (t === "neplac") agg.neodp += s.dayPaidHours; /* unpaid absence day */
-      if (t === "den" || t === "noc" || t === "pulden") agg.neodp += Math.min(+state.shifts[i].lateHours || 0, s.dayPaidHours);
+      /* lateness unpaid hours: clamped to what the shift can actually lose —
+       * a poludnevka works only half a shift, so lateHours=8 shows 4,83 h max */
+      if (t === "den" || t === "noc" || t === "pulden") {
+        const fullH = t === "noc" ? s.nightPaidHours : (t === "pulden" ? s.dayPaidHours / 2 : s.dayPaidHours);
+        agg.neodp += Math.min(+state.shifts[i].lateHours || 0, fullH);
+      }
       agg.P += r.P; agg.E += r.E;
     });
 
@@ -700,7 +728,8 @@
         }
         if (patch.lateHours !== undefined) {
           const lv = +patch.lateHours;
-          state.shifts[idx].lateHours = (isFinite(lv) && lv > 0) ? Math.min(lv, 12) : 0;
+          /* same clamp as payroll.js: lateness can never exceed one full shift */
+          state.shifts[idx].lateHours = (isFinite(lv) && lv > 0) ? Math.min(lv, state.settings.dayPaidHours) : 0;
         }
         persistAll();
         renderAll();
@@ -721,6 +750,9 @@
         /* update the shared result for this day so the totals stay live while painting;
          * re-derive the bonus layer from raw results (never double-apply) */
         resultsRaw[idx] = Payroll.calcDay(new Date(state.year, state.month, idx + 1), b.type, state.shifts[idx], state.settings, holidayMap);
+        /* refresh the attendance info too, otherwise the summary line shows the
+         * pre-paint share/tier until mouseup */
+        state.attInfo = Payroll.attendanceInfo(resultsRaw, state.shifts, state.settings, state.fondDays || 0);
         const painted = Payroll.withAttendanceBonus(resultsRaw, state.shifts, state.settings, state.fondDays || 0);
         window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: painted, brush: b }, idx);
         renderSummary(painted);

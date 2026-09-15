@@ -213,9 +213,10 @@
   /* ---- brush painting ---- */
 
   function paintDay(container, ctx, day) {
-    ctx.onPaint(day);                    /* app mutates state.shifts[day] */
-    refreshCell(container, ctx, day);    /* update just this cell — a full re-render
-                                            would replace the node under the cursor */
+    /* app mutates state.shifts[day] AND refreshes this cell itself with the fresh
+     * results (refreshCell here would run with the stale ctx.results and overwrite
+     * the just-painted sum with the old one until mouseup) */
+    ctx.onPaint(day);
   }
 
   /**

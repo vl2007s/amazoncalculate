@@ -325,8 +325,12 @@
     }
 
     /* O — náhrady: vacation pays PHV for its hours; a poludnevka adds its second
-     * half as paid vacation (payslip 05/2026: 16.5 worked days + dovolená 4.83 h). */
-    const O = (isDov || isPul) ? F * s.phvRate : 0;
+     * half as paid vacation (payslip 05/2026: 16.5 worked days + dovolená 4.83 h).
+     * Ffull, not F: lateness cuts only the WORKED half (časová mzda) — the vacation
+     * half is náhrada mzdy by average earnings and is lateness-independent, same as
+     * every other PHV-based payment (noční/víkend/svátek) and the svatek náhrada
+     * branch above; attendanceInfo likewise always counts the full shiftH/2. */
+    const O = (isDov || isPul) ? Ffull * s.phvRate : 0;
     let P = 0;
     if (!isDov && !isSva) P = J * s.attendanceBonusPct;
 
@@ -353,7 +357,8 @@
    * payslip sheet lists the deductions line by line like Adecco does. */
   function calcNettoDetail(gross, insurable) {
     /* insurable = part of gross subject to SP/ZP (defaults to the whole gross).
-     * Sick-pay compensation (náhrada mzdy při DPN) is taxed but NOT insured. */
+     * Sick-pay compensation (náhrada mzdy při DPN) at Adecco is booked fully
+     * OUTSIDE the gross: not taxed, not insured, paid net (payslip 08/2026). */
     const ins = (typeof insurable === "number" && isFinite(insurable)) ? insurable : gross;
     const zdrav = Math.ceil(Math.ceil(ins * 0.135) / 3);
     const socialni = Math.ceil(ins * 0.071);
@@ -412,7 +417,11 @@
      * 06/2026: 174,01 h x 218 x 10 % = 3 793 (exact; the unpaid day only moved
      *          the share's fond, not the base)
      * 07/2026: 164,34 h x 218 x 6 %  = 2 149 (exact) */
-    const amount = Math.floor(pct * fondPlan * s.baseRate);
+    /* a bonus that cannot be distributed is not paid: withAttendanceBonus rescales
+     * the per-day P values, so when no day carries P (e.g. a month of pure dovolena)
+     * the applied bonus is 0 — the displayed amount must match that */
+    const distributable = results.some(function (r) { return r.P > 0; });
+    const amount = distributable ? Math.floor(pct * fondPlan * s.baseRate) : 0;
     return { fond: fondShare, fondPlan: fondPlan, counted: counted, share: share, pct: pct, amount: amount };
   }
 
@@ -543,11 +552,14 @@
 
   function withMonthlyBonus(results, bonusKc) {
     if (!(bonusKc > 0)) return results;
-    const worked = results.filter(function (r) { return r.J > 0; });
+    /* "actually worked" = paid time wage on a real shift — a náhrada day (holiday
+     * shift stayed home, J from PHV) gets no bonus share, same as agency rules */
+    const payable = function (r) { return r.J > 0 && !(r.isHolidayShift && r.holidayWork === false); };
+    const worked = results.filter(payable);
     if (!worked.length) return results;
     const share = bonusKc / worked.length;
     return results.map(function (r) {
-      if (r.J <= 0) return r;
+      if (!payable(r)) return r;
       const copy = Object.assign({}, r);
       copy.E += share - copy.P; /* swap formula bonus for the fixed share */
       copy.P = share;
@@ -574,7 +586,12 @@
     results.forEach(function (r) {
       Object.keys(totals).forEach(function (k) { totals[k] += (r[k] || 0); });
     });
-    totals.E = Math.round(totals.E * 100) / 100;
+    /* kill float noise (418.00000000000017): money columns to haléře,
+     * hours and the net-only náhrady keep 4 decimals */
+    const money = { J: 1, K: 1, L: 1, M: 1, N: 1, O: 1, P: 1, E: 1 };
+    Object.keys(totals).forEach(function (k) {
+      totals[k] = money[k] ? Math.round(totals[k] * 100) / 100 : round4(totals[k]);
+    });
     return totals;
   }
 
