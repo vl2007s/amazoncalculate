@@ -1,38 +1,73 @@
 # HPP Salary Calculator
 
 A client-side salary calculator for HPP (Czech full-time contracts) with shift planning —
-day / night shifts, overtime, vacation and Czech public-holiday pay. Pure HTML/CSS/JS
-frontend (no build step), plus a small zero-dependency Node.js API over the same payroll core.
+day / night shifts, overtime, vacation, sick leave, doctor visits and Czech public-holiday
+pay. Built for Amazon BRQ warehouse workers (Adecco contract) and **calibrated against real
+payslips** — every formula below is reverse-engineered from actual výplatní pásky and
+reproduces them to the crown. Pure HTML/CSS/JS frontend (no build step), plus a small
+zero-dependency Node.js API over the same payroll core.
 
-Available in **Русский**, **Українська**, **English** and **Čeština**.
+Available in **Русский**, **Українська**, **English**, **Čeština** and **Polski**.
 
 ## Features
 
 - **Calendar view** — the only shift editor: **click a day** to open its settings
-  (shift type, overtime, holiday choice) in a mini dropdown; on mobile it becomes a
-  bottom sheet
+  (shift type, overtime, lateness, holiday choice) in a mini dropdown; on mobile it
+  becomes a bottom sheet
 - **Paint brush** — with the brush active, **drag** across days to paint them
   (a plain click still opens the day editor); totals update live while you paint
+- **Day types** — `volno` (day off), `den` / `noc` (day/night shift), `pulden`
+  (half shift), `dovolena` (vacation), `svatek` (holiday at home), `nemoc` (sick
+  leave DPN), `prek` (doctor visit / překážky dle ZP — half or full paid day),
+  `neplac` (unpaid absence day)
+- **Lateness per day** — enter hours late on any shift: it cuts only the base pay
+  (časová mzda); night/weekend/holiday supplements are still paid for the full shift,
+  exactly like the payslip does
+- **Attendance bonus (dohazkový bonus)** — tiered by attendance share:
+  **100 % → 10 %**, **≥ 90 % → 6 %**, **≥ 85 % → 2 %**, below → 0. The amount is
+  `floor(pct × planned fond × base rate)` — the planned fond (roster shifts × shift
+  hours) is never reduced by lateness; only full unpaid days leave the share fond.
+  A **výtka/ADAPT toggle** voids the month's bonus, and an optional fixed-amount
+  override lives in advanced settings
+- **PHV auto-compute (⚡)** — one click computes the PHV (průměrný hodinový výdělek,
+  §351 ZP) from the previous quarter's painted months: pay-for-work ÷ worked hours
+- **Roster pattern learning** — paint one full month and the app learns your rotation
+  (Amazon weeks start on **Sunday**, 4-week blocks, type change starts a new block)
+  and **auto-fills** the rest of the calendar; predicted days are dimmed, never teach
+  the pattern back, and overtime days never pollute the template. **Reset buttons**
+  clear a single month or wipe the whole auto-fill if the roster ever goes sideways
 - **Automatic public holidays** — Czech holidays (Easter computed algorithmically) are
   detected from the calendar; a day/night shift falling on a holiday gets the holiday
-  supplement automatically — no manual "holiday" day type needed
-- **Holiday choice per law (zákoník práce)** — when a shift touches a public holiday you choose:
-  - **Work it** — normal pay + holiday supplement (double pay for those hours)
-  - **Stay home** — náhrada mzdy: the shift is paid at the average PHV rate, no supplements
-- **Personal rates** — base hourly rate and PHV rate right on the main screen; everyone in
-  the company can have their own. Advanced parameters (paid hours, bonus percentages) live
-  in the settings panel; everything is editable and resettable
-- **Payroll math ported 1:1** from the original Excel workbook (`Vypocet` sheet);
-  column letters in the API match the sheet
-- **Gross → net estimate** (Czech withholdings: 4.5 % health, 7.1 % social, 15 % income tax
-  with taxpayer credit)
+  supplement automatically
+- **Holiday choice per law (zákoník práce)** — when a shift touches a public holiday
+  you choose: **work it** (normal pay + holiday supplement) or **stay home**
+  (náhrada mzdy at the average PHV rate, no supplements)
+- **Personal rates** — base hourly rate and PHV rate right on the main screen; everyone
+  in the company can have their own. Advanced parameters (paid hours, bonus tiers)
+  live in the settings panel; everything is editable and resettable
+- **Gross → net estimate** — Czech withholdings: 4.5 % health, 7.1 % social, 15 %
+  income tax with the taxpayer credit; sick-leave náhrada is booked outside gross
+  (net-only), and advances (mimořádné zálohy) reduce only the payout
 - **Privacy by design** — data lives only in your browser; fonts are self-hosted (zero
   requests to Google); optional self-hosted [Umami](https://umami.is) analytics
   (no cookies, no personal data, no cookie banner needed)
 - **Autosave** — everything persists in `localStorage`, per month
-- **Print / PDF** — payslip-style printout with a detailed per-day breakdown
+- **Print / PDF** — payslip-style printout with a detailed per-day breakdown (🖨 button)
 - **REST API** — calculate payroll for any month from your own tools/scripts
-- **i18n** — RU / UK / EN / CS, auto-detected from the browser, switchable in the UI
+- **i18n** — RU / UK / EN / CS / PL, auto-detected from the browser, switchable in the UI
+- **Tested against real payslips** — `test-calibration.js` replays five actual výplatní
+  pásky (05–08/2026) and asserts every line to the crown: 100+ checks
+
+## The pay model (as proven by payslips)
+
+- Base rate × shift hours (default 9.6667 h) = časová mzda; lateness reduces only this
+- Supplements from the **PHV** rate: night 10 % (≈ 5.667 h/night), weekend 10 %,
+  holiday 100 %, overtime 25 % — always on the **full** shift hours
+- PHV = previous quarter's pay-for-work ÷ worked hours (recalculated quarterly by payroll)
+- Vacation / holiday-at-home: náhrada at full PHV; sick leave: 60 % of reduced PHV,
+  booked net-only; doctor day (překážky): half shift at full PHV (or full shift with
+  the "full day" option), the rest unpaid
+- Attendance bonus: tier % × **planned** fond × base rate, rounded down (see above)
 
 ## Quick start
 
@@ -58,6 +93,15 @@ npm start          # node api/server.js
 Set a custom port with `PORT=8080 npm start`. The server binds to localhost only
 by default; expose it on your network with `HOST=0.0.0.0 npm start`.
 
+### Running the tests
+
+```bash
+node test-calibration.js
+```
+
+Replays the payslip calibration suite (pay math, PHV, bonus tiers, roster pattern,
+lateness, doctor days, five real months). All checks must pass.
+
 ## Project structure
 
 ```
@@ -65,13 +109,14 @@ by default; expose it on your network with `HOST=0.0.0.0 npm start`.
 ├── css/
 │   └── styles.css      # Amazon/A-to-Z-inspired theme, calendar grid, dropdown, brush
 ├── js/
-│   ├── locales.js      # RU / UK / EN / CS dictionaries (shared with the API)
+│   ├── locales.js      # RU / UK / EN / CS / PL dictionaries (shared with the API)
 │   ├── i18n.js         # i18n engine: lookup, plurals, escaping, locale formatting
-│   ├── payroll.js      # core math: holidays, calcDay, netto (UMD — browser + Node)
+│   ├── payroll.js      # core math: holidays, calcDay, bonus, pattern, netto (UMD)
 │   ├── calendar.js     # calendar month view, dropdown picker, paint brush
 │   └── app.js          # state, persistence, rendering, events
 ├── api/
 │   └── server.js       # zero-dependency Node server: static files + REST API
+├── test-calibration.js # payslip calibration test suite (node test-calibration.js)
 ├── package.json
 ├── LICENSE             # MIT
 └── README.md
@@ -90,7 +135,8 @@ curl http://localhost:3000/api/health
 
 ### `GET /api/holidays?year=2026&lang=uk`
 
-Czech public holidays for a year, localized (`lang`: `ru`, `uk`, `en`, `cs`; default `en`).
+Czech public holidays for a year, localized (`lang`: `ru`, `uk`, `en`, `cs`, `pl`;
+default `en`).
 
 ```json
 {
@@ -114,18 +160,25 @@ Body:
   "settings": { "baseRate": 218 },
   "shifts": [
     { "type": "den", "overtime": false, "holidayWork": true },
-    { "type": "noc", "overtime": true }
+    { "type": "noc", "overtime": true, "lateHours": 1.5 },
+    { "type": "prek", "prekFull": false }
   ]
 }
 ```
 
 - `settings` is optional — any subset of the defaults can be overridden.
-- `shifts` is an array of `{ "type": "volno|den|noc|dovolena|svatek", "overtime": bool, "holidayWork": bool }`.
+- `shifts` is an array of entries with:
+  - `"type"`: `volno | den | noc | pulden | dovolena | svatek | nemoc | prek | neplac`
+  - `"overtime"` (bool, `den`/`noc` only) — paid at base + 25 % of PHV
+  - `"holidayWork"` (bool, default `true`) — what happens when the shift touches a
+    public holiday: `true` = worked → normal pay + holiday supplement in column `N`;
+    `false` = stayed home → náhrada at the PHV average, no supplements
+  - `"lateHours"` (number) — hours late; cuts only the base pay, never the supplements
+    or the planned fond
+  - `"prekFull"` (bool, `prek` only) — full paid doctor day instead of half
+  - `"predicted"` (bool) — auto-filled days; they never teach the roster pattern
+
   Missing entries default to `volno`; the array is padded/truncated to the month length.
-  Overtime and `holidayWork` only apply to `den`/`noc`.
-- `holidayWork` (default `true`) decides what happens when the shift touches a public holiday:
-  `true` = worked → normal pay + holiday supplement in column `N`; `false` = stayed home →
-  the day is paid at the PHV average (`J = F × phvRate`) with no supplements.
 
 Response: per-day rows (`F`…`P`, `E` — same letters as the Excel sheet), month totals and a
 net estimate.
@@ -228,8 +281,7 @@ The server is dependency-free but not naive:
 - tight request/headers timeouts (slowloris mitigation), malformed HTTP gets a clean 400,
   and a per-request try/catch turns unexpected errors into a 500 instead of a crash
 - responses carry `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
-  `Permissions-Policy` and a Content-Security-Policy (Google Fonts is the only
-  third-party origin allowed)
+  `Permissions-Policy` and a Content-Security-Policy
 
 ## Adding a language
 
@@ -241,8 +293,8 @@ Plural rules for a new language go into `plural()` in `js/i18n.js`.
 ## Disclaimer
 
 The net-salary figure is an **estimate** for orientation only — not an official payslip.
-Rates and withholdings reflect the company's Excel workbook; verify against current Czech law
-before using it for real payroll.
+The model is calibrated against real Adecco/Amazon BRQ payslips, but verify against
+current Czech law and your own výplatní páska before relying on it.
 
 ## License
 
