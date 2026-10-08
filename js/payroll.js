@@ -1,6 +1,6 @@
 /**
- * Core payroll math — 1:1 port of the "Vypocet" sheet from Kalkulator_mzdy_HPP.xlsx,
- * extended with automatic public-holiday handling per the Czech labour code:
+ * Core payroll math for Czech HPP contracts, with automatic public-holiday
+ * handling per the Czech labour code:
  *
  *   - a den/noc shift that touches a public holiday gets the holiday supplement (N)
  *     AUTOMATICALLY — no manual "svatek" day type needed anymore
@@ -9,8 +9,8 @@
  *       false -> stayed home (náhrada mzdy): paid average earnings (F x phvRate),
  *                no supplements, no attendance bonus
  *
- * Column letters in calcDay() (F..P, E) intentionally match the original sheet so the
- * workbook stays the readable spec for this code.
+ * Column letters in calcDay() (F..P, E) are the stable internal column names
+ * shared by the UI breakdown and the API.
  *
  * UMD: window.Payroll in the browser, module.exports in Node (the API reuses this file).
  */
@@ -21,12 +21,11 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
-  /** Company-wide defaults (from the workbook, list "Nastaveni"; rates verified
-   *  against real Adecco/Amazon BRQ payslips 05–08/2026).
+  /** Company-wide defaults; rates verified against real payslips.
    *  attendanceBonusPct = 10 % of the base pay of worked shifts — reproduces the
-   *  full-month "Pracovní odměna" exactly (06/2026: 218 × 174 h × 10 % = 3 793).
-   *  Real payouts are reduced by absences in ways that do NOT follow hour math
-   *  (05: 908, 07: 2 149), so for exact reconciliation enter the payslip amount
+   *  full-month "Pracovní odměna" exactly (218 × 174 h × 10 % = 3 793).
+   *  Real payouts are reduced by absences in ways that do NOT follow hour math,
+   *  so for exact reconciliation enter the payslip amount
    *  into bonusMonthKc — it then REPLACES the percentage formula. */
   const DEFAULT_SETTINGS = {
     baseRate: 218,
@@ -92,7 +91,7 @@
 
   /* ---------- Czech public holidays ---------- */
 
-  /** Computable Easter (Meeus/Jones/Butcher) — mirrors the Velikonoce calc in the workbook. */
+  /** Computable Easter (Meeus/Jones/Butcher). */
   function easterSunday(year) {
     const a = year % 19, b = Math.floor(year / 100), c = year % 100;
     const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
@@ -155,7 +154,7 @@
 
   /* ---------- payroll math ---------- */
 
-  /** Round like the workbook: 4 decimals for hour fractions, whole crowns for money. */
+  /** Payroll rounding: 4 decimals for hour fractions, whole crowns for money. */
   function round4(x) { return Math.round(x * 10000) / 10000; }
   function round0(x) { return Math.round(x); }
 
@@ -185,7 +184,7 @@
    * @param s          settings (see DEFAULT_SETTINGS)
    * @param holidayMap dateKey -> holiday name, see buildHolidayMap()
    *
-   * Column letters follow the original sheet:
+   * Column letters (stable internal names):
    *   F paid hours | G night hours | H weekend hours | I holiday flag (ANO/NÁH/-)
    *   J base pay | K night bonus | L weekend bonus | M overtime | N holiday bonus
    *   O vacation pay | P attendance bonus | E day total
@@ -205,12 +204,11 @@
 
     /* Sick day (DPN, first 14 calendar days): the employer pays 60 % of the
      * reduced PHV for the missed shift's hours (§ 192 ZP). No supplements, no
-     * attendance bonus; holidays ignored. Adecco books this compensation fully
+     * attendance bonus; holidays ignored. The compensation is booked fully
      * OUTSIDE the gross: not in hrubá mzda, no SP/ZP insurance, not even taxed —
-     * it is simply added to the payout. Verified to the crown on payslip
-     * 08/2026 (PHV 237.18): Náhrada Prac.nesch. 19,34 h -> 2 477 Kč paid net,
-     * gross 36 831 excludes it, daň 2 965 = 15 % of 36 900 − 2 570,
-     * K výplatě 32 069 = 36 831 − 7 239 + 2 477. Carried out via `nem`. */
+     * it is simply added to the payout. Verified numerically (PHV 237.18):
+     * 19,34 h -> 2 477 Kč paid net; the gross excludes it entirely.
+     * Carried out via `nem`. */
     if (isNem) {
       const F = s.dayPaidHours; /* day and night shifts are both 9.6667 h */
       const NEM = 0.6 * reducePhv(s.phvRate) * F;
@@ -222,9 +220,9 @@
     }
 
     /* Unpaid full-day absence (neplacené volno): 0 Kč, nothing counted; the
-     * day leaves the fond used for the attendance SHARE (payslip 06/2026:
-     * Neodpracované 9,67 h -> 0, fond for the share 174,01 - 9,67 = 164,34,
-     * counted 164,34 -> 100 % -> 10 % odměna 3 793 on the FULL fond base). */
+     * day leaves the fond used for the attendance SHARE (verified numerically:
+     * 9,67 unpaid h -> 0; share fond 174,01 - 9,67 = 164,34 h; counted 164,34
+     * -> 100 % -> 10 % odměna 3 793 on the FULL fond base). */
     if (isNep) {
       return {
         F: 0, G: 0, H: 0, I: "-", J: 0, K: 0, L: 0, M: 0, N: 0, O: 0, P: 0, E: 0,
@@ -233,14 +231,13 @@
       };
     }
 
-    /* Doctor visit with a propustka (překážky v práci dle § 209 ZP): Adecco
-     * books the missed shift as half PAID at the full PHV (inside the gross —
-     * taxed and insured, like vacation náhrada) and half UNPAID. Payslip
-     * 08/2026 (Simonov): Překážky dle ZP 4,83 h -> 1 188 Kč inside hrubá mzda,
-     * Neodpracované hodiny 6,22 -> 0 Kč (= the unpaid half 4,83 + lateness). */
+    /* Doctor visit with a propustka (překážky v práci dle § 209 ZP): the missed
+     * shift is booked as half PAID at the full PHV (inside the gross — taxed and
+     * insured, like vacation náhrada) and half UNPAID. Verified numerically:
+     * 4,83 h -> 1 188 Kč inside hrubá mzda; 6,22 h -> 0 Kč (unpaid half + lateness). */
     if (isPrek) {
-      /* half day by default (08/2026: 4,83 h -> 1 188); a full-day documented
-       * obstacle pays the whole shift (06/2026: 9,67 h -> 2 108) */
+      /* half day by default (verified: 4,83 h -> 1 188); a full-day documented
+       * obstacle pays the whole shift (9,67 h -> 2 108) */
       const prekHours = opts.prekFull ? s.dayPaidHours : s.dayPaidHours / 2;
       const O = round4(prekHours * s.phvRate);
       return {
@@ -252,8 +249,8 @@
 
     /* lateness (pozdní příchod): unpaid hours off the shift — cuts ONLY the
      * time wage and the counted attendance hours. Supplements (noční/víkend)
-     * are paid for the FULL shift anyway — payslip 08/2026: lateness 1,39 h
-     * cut the časová mzda to 162,95 h, but noční stayed the full 68 h. */
+     * are paid for the FULL shift anyway — verified: lateness 1,39 h cut the
+     * časová mzda to 162,95 h, but noční stayed the full 68 h. */
     const late = Math.max(0, Math.min(+opts.lateHours || 0, s.dayPaidHours));
 
     let Ffull;
@@ -300,7 +297,7 @@
 
     /* Supplements are statutory minimums computed from the AVERAGE earnings (PHV),
      * not the base rate — zákoník práce § 116 (night), § 118 (weekend), § 114
-     * (overtime). Proven by payslip 07/2026: PHV 246.06 vs base 218 —
+     * (overtime). Verified numerically: PHV 246.06 vs base 218 —
      * noční 17 h -> 418 Kč = 17 × 246.06 × 10 %, víkend 34.5 h -> 849 Kč. */
     const K = G * s.phvRate * s.nightBonusPct;
     const L = H * s.phvRate * s.weekendBonusPct;
@@ -325,7 +322,7 @@
     }
 
     /* O — náhrady: vacation pays PHV for its hours; a poludnevka adds its second
-     * half as paid vacation (payslip 05/2026: 16.5 worked days + dovolená 4.83 h).
+     * half as paid vacation (verified: 16.5 worked days + dovolená 4.83 h).
      * Ffull, not F: lateness cuts only the WORKED half (časová mzda) — the vacation
      * half is náhrada mzdy by average earnings and is lateness-independent, same as
      * every other PHV-based payment (noční/víkend/svátek) and the svatek náhrada
@@ -354,11 +351,11 @@
   }
 
   /** Same math as calcNetto, but with the components exposed — the printable
-   * payslip sheet lists the deductions line by line like Adecco does. */
+   * payslip sheet lists the deductions line by line like the real document. */
   function calcNettoDetail(gross, insurable) {
     /* insurable = part of gross subject to SP/ZP (defaults to the whole gross).
-     * Sick-pay compensation (náhrada mzdy při DPN) at Adecco is booked fully
-     * OUTSIDE the gross: not taxed, not insured, paid net (payslip 08/2026). */
+     * Sick-pay compensation (náhrada mzdy při DPN) is booked fully
+     * OUTSIDE the gross: not taxed, not insured, paid net (verified numerically). */
     const ins = (typeof insurable === "number" && isFinite(insurable)) ? insurable : gross;
     const zdrav = Math.ceil(Math.ceil(ins * 0.135) / 3);
     const socialni = Math.ceil(ins * 0.071);
@@ -405,18 +402,17 @@
       else if (t === "prek") counted += sh.prekFull ? shiftH : shiftH / 2; /* paid doctor hours count */
       else if (t === "neplac") unpaidDays++; /* full unpaid day leaves the share fond */
       /* nemoc: stays in the fond but is never counted (unplanned absence) */
-      /* lateness / partial unpaid hours never touch the fond (user's rule,
-       * payslip 07/2026) — only FULL unpaid days do (06/2026) */
+      /* lateness / partial unpaid hours never touch the fond —
+       * only FULL unpaid days reduce it */
       if (t !== "volno") paintedFond += shiftH;
     });
     const fondPlan = fondDays > 0 ? fondDays * shiftH : paintedFond;
     const fondShare = Math.max(0, fondPlan - unpaidDays * shiftH);
     const share = fondShare > 0 ? counted / fondShare : 1;
     const pct = bonusTier(share);
-    /* bonus base = the FULL planned fond x base rate — payslip proofs:
-     * 06/2026: 174,01 h x 218 x 10 % = 3 793 (exact; the unpaid day only moved
-     *          the share's fond, not the base)
-     * 07/2026: 164,34 h x 218 x 6 %  = 2 149 (exact) */
+    /* bonus base = the FULL planned fond x base rate — verified numerically:
+     * 174,01 h x 218 x 10 % = 3 793 (the unpaid day only moved the share's fond,
+     * not the base); 164,34 h x 218 x 6 % = 2 149 */
     /* a bonus that cannot be distributed is not paid: withAttendanceBonus rescales
      * the per-day P values, so when no day carries P (e.g. a month of pure dovolena)
      * the applied bonus is 0 — the displayed amount must match that */
@@ -465,10 +461,9 @@
    * days + 1 week of nights means 3 more night weeks follow, then 4 day weeks.
    * Blocks alternate every 4 weeks in both directions, so any past or future
    * month can be predicted (used for autofill and the approximate PHV). */
-  /* Amazon week starts on SUNDAY, not Monday — rotation blocks align to
-   * Sun-Sat weeks (payslip 07/2026 proof: nights ran Sun 26.-Wed 29.7, so
-   * Sun 26.7 opened a new block week; a Monday-based week glued it to the
-   * previous day block and mispredicted it as a day shift) */
+  /* Roster weeks start on SUNDAY, not Monday — blocks align to Sun-Sat weeks.
+   * (A Monday-based week mis-groups a Sun-Wed night block into the previous day
+   * block and mispredicts it as a day shift.) */
   function weekStartOf(d) { return addDays(d, -d.getDay()); }
 
   /* The roster is learned from a FULLY painted month (>= 7 scheduled days over
@@ -596,7 +591,7 @@
   }
 
   /**
-   * Schedule presets (Amazon-style rotation patterns). days = weekday numbers
+   * Schedule presets (rotation patterns). days = weekday numbers
    * (0 = Sunday … 6 = Saturday) that make up the working part of the pattern.
    */
   const SCHEDULE_PRESETS = [

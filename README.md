@@ -2,7 +2,7 @@
 
 A client-side salary calculator for HPP (Czech full-time contracts) with shift planning —
 day / night shifts, overtime, vacation, sick leave, doctor visits and Czech public-holiday
-pay. Built for Amazon BRQ warehouse workers (Adecco contract) and **calibrated against real
+pay. Built for warehouse workers and **calibrated against real
 payslips** — every formula below is reverse-engineered from actual výplatní pásky and
 reproduces them to the crown. Pure HTML/CSS/JS frontend (no build step), plus a small
 zero-dependency Node.js API over the same payroll core.
@@ -72,7 +72,7 @@ Available in **Русский**, **Українська**, **English**, **Češt
 ### Known simplifications (documented, intentional)
 
 - **DST** — a night shift across the clock-change night really lasts ±1 h; the model
-  (like the original Excel workbook) uses fixed 9.6667 h shifts
+  (agency-style constant) uses fixed 9.6667 h shifts
 - **Minimum health-insurance base** — months with massive unpaid leave may owe ZP
   top-up to 13.5 % of the minimum wage; not modeled (DPN days are excluded from the
   base, which makes exact modeling non-trivial). Expect up to ~900 Kč difference in
@@ -118,7 +118,7 @@ lateness, doctor days, five real months). All checks must pass.
 ```
 ├── index.html          # markup
 ├── css/
-│   └── styles.css      # Amazon/A-to-Z-inspired theme, calendar grid, dropdown, brush
+│   └── styles.css      # Brand theme (dark navy + yellow CTA), calendar, dropdown, brush
 ├── js/
 │   ├── locales.js      # RU / UK / EN / CS / PL dictionaries (shared with the API)
 │   ├── i18n.js         # i18n engine: lookup, plurals, escaping, locale formatting
@@ -305,7 +305,7 @@ Plural rules for a new language go into `plural()` in `js/i18n.js`.
 ## Disclaimer
 
 The net-salary figure is an **estimate** for orientation only — not an official payslip.
-The model is calibrated against real Adecco/Amazon BRQ payslips, but verify against
+The model is calibrated against real payslips, but verify against
 current Czech law and your own výplatní páska before relying on it.
 
 ## License

@@ -230,7 +230,7 @@ function handleCalculate(req, res) {
         prekFull: !!shift.prekFull,
         weekend: r.isWeekend,
         holiday: r.holidayName,
-        /* column letters match the original workbook sheet "Vypocet" */
+        /* column letters are the stable internal column names */
         F: r.F, G: r.G, H: r.H, I: r.I, J: r.J, K: r.K, L: r.L,
         M: r.M, N: r.N, O: r.O, P: r.P, E: Math.round(r.E * 100) / 100,
         nem: Math.round((r.nem || 0) * 100) / 100,
@@ -240,7 +240,7 @@ function handleCalculate(req, res) {
 
     const totals = Payroll.calcTotals(days);
     /* sick-pay compensation (DPN náhrada) is paid outside the gross — not taxed,
-     * not insured, added straight to the payout (payslip 08/2026 verified) */
+     * not insured, added straight to the payout (verified numerically) */
     const netEstimate = Payroll.calcNetto(totals.E) + totals.nem;
 
     sendJson(res, 200, {

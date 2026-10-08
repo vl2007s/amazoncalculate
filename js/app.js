@@ -482,7 +482,7 @@
       return a + ((t === "den" || t === "noc" || t === "pulden") && !nah ? r.F : 0);
     }, 0);
     /* sick-pay compensation (náhrada při DPN) is paid fully outside the gross —
-     * not taxed, not insured, simply added to the payout (payslip 08/2026) */
+     * not taxed, not insured, simply added to the payout (verified numerically) */
     const nem = results.reduce(function (a, r) { return a + (r.nem || 0); }, 0);
     /* worked days: full shifts count 1, a poludnevka counts 0.5 (16,5 dne style);
      * náhrada days (stayed home on a holiday) are not worked days */
@@ -567,7 +567,7 @@
   }
 
   /* ============ Payslip sheet (print only) ============
-   * Aggregates the month into an Adecco-style výplatní páska: earnings lines,
+   * Aggregates the month into a výplatní páska-style sheet: earnings lines,
    * deductions, net. Rendered on every re-render so printing is always current. */
   function renderPayslip(results) {
     const s = state.settings;
@@ -801,7 +801,7 @@
     persistAll();
     renderAll();
   });
-  document.getElementById("btnPrint").addEventListener("click", function () {
+  document.getElementById("btnPrintTop").addEventListener("click", function () {
     /* the print stylesheet hides interactive controls but keeps the breakdown */
     document.getElementById("breakdownPanel").open = true;
     window.print();

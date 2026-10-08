@@ -1,4 +1,4 @@
-/* Calibration test — reproduces real Adecco/Amazon BRQ payslips 05–07/2026
+/* Calibration test — reproduces real payslip figures
  * and verifies the new pulden/nemoc day types. Run: node test-calibration.js */
 "use strict";
 const Payroll = require("./js/payroll.js");
@@ -18,22 +18,22 @@ function day(y, m, d, type, opts, s) {
 }
 
 /* --- 1. Netto reproduces payslips exactly (čistá mzda) --- */
-ok(Payroll.calcNetto(41088) === 32726, "netto 41088 -> 32726 (payslip 05/2026)");
-ok(Payroll.calcNetto(44607) === 35296, "netto 44607 -> 35296 (payslip 06/2026)");
-ok(Payroll.calcNetto(43673) === 34621, "netto 43673 -> 34621 (payslip 07/2026)");
+ok(Payroll.calcNetto(41088) === 32726, "netto 41088 -> 32726 (verified)");
+ok(Payroll.calcNetto(44607) === 35296, "netto 44607 -> 35296 (verified)");
+ok(Payroll.calcNetto(43673) === 34621, "netto 43673 -> 34621 (verified)");
 
-/* --- 2. Supplements use PHV, not base (payslip 07/2026: PHV 246.06 vs base 218) --- */
+/* --- 2. Supplements use PHV, not base (PHV 246.06 vs base 218) --- */
 const S3 = Object.assign({}, S, { phvRate: 246.06 });
 const noc = day(2026, 7, 6, "noc"); /* Monday night */
 ok(close(noc.G, 5.6667, 0.001) && close(noc.K, 5.6667 * 246.06 * 0.1, 0.05),
   "night bonus from PHV: K=" + noc.K.toFixed(2) + " (was 123.40 from base)");
 
-/* weekend day shift: L = H x PHV x 10% — 34.5 h -> 849 Kč on the payslip */
+/* weekend day shift: L = H x PHV x 10% — verified: 34.5 h -> 849 Kč */
 const sat = day(2026, 7, 4, "den", {}, S3); /* Saturday */
 ok(close(sat.H, 9.6667, 0.001) && close(sat.L, 9.6667 * 246.06 * 0.1, 0.05),
   "weekend bonus from PHV: L=" + sat.L.toFixed(2));
 ok(close(34.5 * 246.06 * 0.1, 849, 0.5) && close(17 * 246.06 * 0.1, 418, 0.5),
-  "payslip lines: víkend 34.5h->849, noční 17h->418");
+  "verified lines: víkend 34.5h->849, noční 17h->418");
 
 /* holiday supplement = 100 % PHV — svátek 19.34 h -> 4 759 Kč */
 ok(close(19.34 * 246.06, 4759, 1), "holiday: 19.34h x PHV 246.06 -> ~4759");
@@ -42,11 +42,11 @@ ok(close(19.34 * 246.06, 4759, 1), "holiday: 19.34h x PHV 246.06 -> ~4759");
 const ot = day(2026, 7, 7, "den", { overtime: true }, S3);
 ok(close(ot.M, 9.6667 * 246.06 * 0.25, 0.05), "overtime 25% of PHV: M=" + ot.M.toFixed(2));
 
-/* --- 4. Pulden: half shift + half paid vacation (payslip 05/2026) --- */
+/* --- 4. Pulden: half shift + half paid vacation (verified) --- */
 const pul = day(2026, 5, 12, "pulden", {}, Object.assign({}, S, { phvRate: 218 }));
 ok(close(pul.F, 4.8333, 0.001), "pulden F=4.8333 (half of 9.6667)");
 ok(close(pul.J, 4.8333 * 218, 0.05) && close(pul.O, 4.8333 * 218, 0.05),
-  "pulden J=O=1053.66 at 218 (payslip: dovolená 4.83h -> 1053)");
+  "pulden J=O=1053.66 at 218 (verified: dovolená 4.83h -> 1053)");
 const pulQ3 = day(2026, 7, 8, "pulden", {}, S3);
 ok(close(pulQ3.E, 4.8333 * 218 * 1.1 + 4.8333 * 246.06, 0.1),
   "pulden Q3: E=" + pulQ3.E.toFixed(2) + " (base half x1.1 attendance + PHV half)");
@@ -63,7 +63,7 @@ const nemTotals = Payroll.calcTotals([nem]);
 ok(nemTotals.E === 0 && close(nemTotals.nem, nem.nem, 0.001),
   "nemoc: totals E=0 (gross untouched), náhrada carried in nem");
 
-/* --- 5b. Colleague payslip 08/2026 (PHV 237.18): gross EXCLUDES náhrada --- */
+/* --- 5b. Reference payslip (PHV 237.18): gross EXCLUDES náhrada --- */
 const SC = Object.assign({}, Payroll.DEFAULT_SETTINGS, { baseRate: 218, phvRate: 237.18 });
 const cal8 = {};
 [2, 3, 4, 5, 9, 10, 11, 16, 17, 18, 19].forEach(function (d) { cal8[d] = "noc"; });
@@ -123,7 +123,7 @@ ok(close(lateDen.F, 7.6667, 0.001) && close(lateDen.J, 7.6667 * 218, 0.5),
   "late 2h: F=7.67, J=" + lateDen.J.toFixed(2) + " (7.67h x 218)");
 const lateNoc = day(2026, 7, 7, "noc", { lateHours: 1.5 }, S3);
 ok(close(lateNoc.F, 9.6667 - 1.5, 0.001) && close(lateNoc.K, day(2026, 7, 7, "noc", {}, S3).K, 0.01),
-  "late night: časová cut, noční paid in full (payslip 08/2026: 68 h despite lateness)");
+  "late night: časová cut, noční paid in full (verified: 68 h despite lateness)");
 ok(close(day(2026, 7, 8, "pulden", { lateHours: 6 }, S3).F, 0, 0.001),
   "pulden late 6h: worked half fully eaten (clamped at 0)");
 
@@ -158,7 +158,7 @@ const shE = shP.concat([{ type: "den", overtime: true }]);
 ok(Payroll.attendanceInfo(withExtra, shE, S3, 2).share > 1, "extra shift beyond fond -> share > 100% (bonus saved)");
 
 /* --- 11. Roster pattern: detect from painted weeks, rotate 4/4 --- */
-/* Amazon weeks start on SUNDAY. User painted 3 weeks of Sun-Wed day shifts
+/* Roster weeks start on SUNDAY. User painted 3 weeks of Sun-Wed day shifts
  * (weeks of Sun 2.8, 9.8, 16.8.2026) */
 const md = [{ year: 2026, month: 7, shifts: Array.from({ length: 31 }, function () { return { type: "volno" }; }) }];
 [2, 3, 4, 5, 9, 10, 11, 12, 16, 17, 18, 19].forEach(function (d) { md[0].shifts[d - 1] = { type: "den" }; });
@@ -172,9 +172,9 @@ ok(Payroll.predictType(new Date(2026, 8, 2), pat) === "noc", "night block contin
 ok(Payroll.predictType(new Date(2026, 8, 23), pat) === "noc", "week of Sun 20.9 -> still nights");
 ok(Payroll.predictType(new Date(2026, 8, 30), pat) === "den", "week of Sun 27.9 -> back to days (4/4)");
 ok(Payroll.predictType(new Date(2026, 7, 21), pat) === "volno", "Friday not in pattern -> volno");
-ok(Payroll.predictType(new Date(2026, 6, 29), pat) === "noc", "week of Sun 26.7 -> previous block = nights (payslip: nights 26.-29.7!)");
+ok(Payroll.predictType(new Date(2026, 6, 29), pat) === "noc", "week of Sun 26.7 -> previous block = nights (verified: nights 26.-29.7)");
 ok(Payroll.predictType(new Date(2026, 6, 1), pat) === "den", "week of Sun 28.6 -> two blocks back = day");
-ok(Payroll.countFondDays(2026, 7, [0, 1, 2, 3]) === 18, "Aug 2026 Sun-Wed = 18 fond days (payslip: 174 h = 18 x 9.67)");
+ok(Payroll.countFondDays(2026, 7, [0, 1, 2, 3]) === 18, "Aug 2026 Sun-Wed = 18 fond days (verified: 174 h = 18 x 9.67)");
 
 
 /* --- 12. Shift switch: move a shift off-roster, bonus untouched --- */
@@ -272,7 +272,7 @@ ok(patMix && patMix.weekdays.indexOf(5) === -1 && patMix.weekdays.length === 4,
 }
 
 
-/* 17. Vladyslav's own payslip 08/2026 — doctor day (překážky) + lateness:
+/* 17. Reference payslip — doctor day (překážky) + lateness:
  * časová 35 523, víkend 644, noční 1 673, odměna 3 523 (= 10 % — the full
  * bonus!), Překážky 4,83 h -> 1 188 inside gross, Neodpracované 6,22 -> 0,
  * hrubá 42 551, čistá 33 794. Fond 174 (Sun–Wed x 9,6667), PHV 246,06. */
@@ -299,8 +299,8 @@ ok(patMix && patMix.weekdays.indexOf(5) === -1 && patMix.weekdays.length === 4,
   const resV = Payroll.withAttendanceBonus(rawV, shV, SV, 18);
   const gross = resV.reduce(function (a, r) { return a + r.E; }, 0);
   const bonus = resV.reduce(function (a, r) { return a + r.P; }, 0);
-  /* NB: the 08/2026 payslip itself is anomalous vs the fond-base rule proven
-   * exactly on 06/2026 (3 793) and 07/2026 (2 149): its odměna 3 523 matches
+  /* NB: this payslip is anomalous vs the fond-base rule proven
+   * exactly elsewhere (3 793 and 2 149): its odměna 3 523 matches
    * NO tier on the planned base (10 % would be 3 793, 6 % is 2 276) and its
    * víkend 26,17 h is one Sunday day shift short of the painted 35,83 h.
    * Model follows the verified rule + painted data. */
@@ -310,7 +310,7 @@ ok(patMix && patMix.weekdays.indexOf(5) === -1 && patMix.weekdays.length === 4,
 }
 
 
-/* 18. Vladyslav 07/2026 — EXACT payslip reproduction with the fond-base rule:
+/* 18. Reference payslip — EXACT reproduction with the fond-base rule:
  * časová 33 119 (151,92 h), víkend 34,5 h -> 849, noční 17 h -> 418,
  * svátek 19,34 h -> 4 759, dovolená 9,67 h -> 2 379, odměna 2 149
  * (= 6 % x fond 164,34 h x 218 — exact), hrubá 43 673, čistá 34 621.

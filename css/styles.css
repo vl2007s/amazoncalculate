@@ -1,4 +1,4 @@
-/* Amazon / A-to-Z inspired theme: dark #131921 header, #232F3E sub-nav,
+/* Brand theme: dark navy header (#131921), sub-nav (#232F3E),
  * yellow CTA (#FFD814), orange accents (#FF9900), teal links (#007185). */
 :root{
   --ink-900:#131921; --ink-800:#1A2530; --ink-700:#232F3E;
@@ -26,7 +26,7 @@ html{color-scheme:light;}
 html[data-theme="dark"]{color-scheme:dark;}
 
 /* Dark theme — same variables, night-shifted surfaces. Accent/CTA colors stay
-   Amazon (yellow CTA, orange brand) for brand consistency. */
+   identical (yellow CTA, orange brand) for brand consistency. */
 html[data-theme="dark"]{
   --ink-900:#0B0F14; --ink-800:#131A22; --ink-700:#1C2733;
   --surface-0:#1F2833; --surface-100:#0F141A; --surface-200:#2A3644;
@@ -423,6 +423,14 @@ body{overflow-x:hidden;}
  * calendar and the per-day breakdown. All interactive UI stays out. */
 /* ============ Payslip sheet (print only) ============ */
 .payslip{display:none;}
+/* guide panel (collapsible onboarding) */
+.guide-body{padding:12px 18px 14px;}
+.guide-body p{font-size:13.5px; color:var(--text-600); margin:0 0 8px; line-height:1.55;}
+.guide-body p:last-child{margin-bottom:0;}
+/* small primary button for the subbar */
+.btn-sm{padding:6px 12px; font-size:12.5px;}
+.subbar .btn-sm{white-space:nowrap;}
+
 @media print{
   .topbar, .subbar, .brush-bar, .legend, .day-popover,
   #settingsPanel, footer, .toast, .privacy-modal, .settings-link,
