@@ -118,6 +118,10 @@ a:hover{color:var(--link-hover); text-decoration:underline;}
 .rates-field input:focus{border-color:var(--accent-500); outline:none; box-shadow:0 0 0 3px rgba(255,153,0,.25);}
 .rates-field .unit{font-size:12px; color:var(--text-500);}
 .rates-hint{font-size:12px; color:var(--text-500); margin-left:auto;}
+.rates-tag{
+  font-size:11px; font-weight:700; color:var(--success-text); background:var(--success-bg);
+  border:1px solid var(--success-line); border-radius:999px; padding:2px 8px; white-space:nowrap;
+}
 
 /* ---------- Summary cards ---------- */
 .summary{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;}

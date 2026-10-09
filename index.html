@@ -82,10 +82,12 @@
         <span class="unit" data-i18n="u_kch">CZK/h</span>
       </label>
       <label class="rates-field">
-        <span data-i18n="f_phvRate">Average PHV rate (vacation/holiday)</span>
+        <span data-i18n="f_phvRate">Average PVH rate (vacation/holiday)</span>
         <input type="number" id="ratePhvInput" min="0" step="0.01" value="246.06">
         <span class="unit" data-i18n="u_kch">CZK/h</span>
       </label>
+      <button type="button" class="btn ghost btn-sm" id="btnPhvCalc" data-i18n="phvCalcBtn" data-i18n-title="phvCalcHint" title="Compute from previous quarter">⚡ Compute</button>
+      <span class="rates-tag" id="phvAutoTag" data-i18n="phvAutoTag" hidden>auto from last quarter</span>
       <label class="rates-field rates-check">
         <span data-i18n="f_bonusVoid">Warning letter / ADAPT this month</span>
         <input type="checkbox" id="bonusVoidInput">

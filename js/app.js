@@ -319,6 +319,20 @@
 
   bindRateInput(rateBaseInput, "baseRate");
   bindRateInput(ratePhvInput, "phvRate");
+  /* a manual PVH edit opts out of the auto-quarter derivation; the compute
+   * button re-enables it */
+  ratePhvInput.addEventListener("change", function () { state.settings.phvAuto = false; });
+  document.getElementById("btnPhvCalc").addEventListener("click", function () {
+    const res = computePrevQuarterPhv();
+    if (!res) { showMsg(I18n.t("phvCalcNoData")); return; }
+    state.settings.phvRate = Payroll.round4(res.phv);
+    state.settings.phvAuto = true;
+    persistAll();
+    renderAll();
+    showMsg(I18n.t("phvCalcDone") + ": " + I18n.fmtNum(res.phv) + " " +
+      I18n.t("u_kch") + " (" + I18n.fmtNum(res.hours) + " " + I18n.t("hoursUnit") + ")" +
+      (res.estimated ? " — " + I18n.t("phvCalcEstimated") : ""));
+  });
   /* bonus-void toggle: warning letter / ADAPT this month voids the whole
    * attendance bonus (replaces the old fixed-amount quick field) */
   bonusVoidInput.addEventListener("change", function () {
@@ -395,27 +409,6 @@
         const unit = document.createElement("span");
         unit.className = "unit"; unit.textContent = I18n.t(f.unit);
         row.appendChild(label); row.appendChild(input); row.appendChild(unit);
-        /* PHV gets an auto-compute button: the law derives it from the previous
-         * calendar quarter — we have those shifts saved in localStorage */
-        if (f.key === "phvRate") {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "btn phv-calc";
-          btn.textContent = I18n.t("phvCalcBtn");
-          btn.title = I18n.t("phvCalcHint");
-          btn.addEventListener("click", function () {
-            const res = computePrevQuarterPhv();
-            if (!res) { showMsg(I18n.t("phvCalcNoData")); return; }
-            state.settings.phvRate = Payroll.round4(res.phv);
-            persistAll();
-            buildSettingsForm();
-            renderAll();
-            showMsg(I18n.t("phvCalcDone") + ": " + I18n.fmtNum(res.phv) + " " +
-              I18n.t("u_kch") + " (" + I18n.fmtNum(res.hours) + " " + I18n.t("hoursUnit") + ")" +
-              (res.estimated ? " — " + I18n.t("phvCalcEstimated") : ""));
-          });
-          row.appendChild(btn);
-        }
         wrap.appendChild(row);
       });
       settingsGrid.appendChild(wrap);
@@ -685,6 +678,17 @@
 
     /* keep the quick rate fields in sync (also after changes from the settings panel) */
     if (document.activeElement !== rateBaseInput) rateBaseInput.value = state.settings.baseRate;
+    /* PVH auto mode: derive from the previous calendar quarter whenever data exists */
+    if (state.settings.phvAuto !== false) {
+      const auto = computePrevQuarterPhv();
+      if (auto) {
+        state.settings.phvRate = Payroll.round4(auto.phv);
+        saveSettings(state.settings); /* silent persist — no toast for auto updates */
+      }
+    }
+    const autoTag = document.getElementById("phvAutoTag");
+    if (autoTag) autoTag.hidden = state.settings.phvAuto === false;
+
     if (document.activeElement !== ratePhvInput) ratePhvInput.value = state.settings.phvRate;
     if (document.activeElement !== bonusVoidInput) bonusVoidInput.checked = !!state.settings.bonusVoid;
 
