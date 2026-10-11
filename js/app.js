@@ -274,6 +274,15 @@
     input.addEventListener("change", function () {
       let v = parseFloat(input.value);
       if (isNaN(v) || v < 0) v = Payroll.DEFAULT_SETTINGS[key];
+      /* a base-rate raise scales a manually-set PVH along proportionally — PVH
+       * is the average earnings at the OLD rate; auto mode recomputes itself
+       * on the next render, this is only for manual overrides */
+      if (key === "baseRate" && state.settings.phvAuto === false) {
+        const oldBase = state.settings.baseRate;
+        if (oldBase > 0 && v !== oldBase) {
+          state.settings.phvRate = Payroll.round4(state.settings.phvRate * v / oldBase);
+        }
+      }
       state.settings[key] = v;
       persistAll();
       buildSettingsForm(); /* keep the advanced form in sync */
@@ -402,7 +411,15 @@
         input.addEventListener("change", function () {
           let v = parseFloat(input.value);
           if (isNaN(v) || v < 0) v = f.pct ? (Payroll.DEFAULT_SETTINGS[f.key] * 100) : Payroll.DEFAULT_SETTINGS[f.key];
-          state.settings[f.key] = f.pct ? v / 100 : v;
+          const newVal = f.pct ? v / 100 : v;
+          /* same PVH rule as the quick field: base-rate changes scale a manual PVH */
+          if (f.key === "baseRate" && state.settings.phvAuto === false) {
+            const oldBase = state.settings.baseRate;
+            if (oldBase > 0 && newVal !== oldBase) {
+              state.settings.phvRate = Payroll.round4(state.settings.phvRate * newVal / oldBase);
+            }
+          }
+          state.settings[f.key] = newVal;
           persistAll();
           renderAll();
         });
