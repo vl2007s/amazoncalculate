@@ -418,6 +418,35 @@
     return res;
   }
 
+  /* ============ Attendance bonus (paid on the NEXT month's payslip) ============
+   * The bonus shown on month M's payslip was earned in month M-1: tier and
+   * counted hours come from the previous month's shifts; the payout is at the
+   * CURRENT base rate: floor(tier x counted(prev) x baseRate). If the previous
+   * month was never painted, approximate it from the roster pattern. */
+  function prevMonthBonusKc() {
+    let py = state.year, pm = state.month - 1;
+    if (pm < 0) { pm = 11; py -= 1; }
+    const dim = Payroll.daysInMonth(py, pm);
+    let shifts = loadShifts(py, pm, dim);
+    const pattern = state.pattern || currentPattern();
+    if (!shifts.some(function (s) { return s.type !== "volno" && !s.predicted; })) {
+      if (!pattern) return { amount: 0, info: null, hasData: false };
+      shifts = [];
+      for (let i = 0; i < dim; i++) {
+        shifts.push({ type: Payroll.predictType(new Date(py, pm, i + 1), pattern), overtime: false, holidayWork: true, lateHours: 0 });
+      }
+    }
+    const holidayMap = Payroll.buildHolidayMap(py, I18n.getLang(), I18n.locales());
+    const results = shifts.map(function (sh, i) {
+      const dayDate = new Date(py, pm, i + 1);
+      return Payroll.calcDay(dayDate, sh.type, sh, settingsForDate(dayDate), holidayMap);
+    });
+    const fondDays = pattern ? Payroll.countFondDays(py, pm, pattern.weekdays) : 0;
+    const info = Payroll.attendanceInfo(results, shifts, state.settings, fondDays);
+    const amount = Math.floor(info.pct * info.counted * state.settings.baseRate);
+    return { amount: amount, info: info, hasData: true };
+  }
+
   function buildSettingsForm() {
     settingsGrid.innerHTML = "";
     const groups = {};
@@ -535,19 +564,23 @@
     document.getElementById("sumNet").textContent = I18n.fmtMoney(Payroll.calcNetto(gross) + nem);
     document.getElementById("sumHours").textContent = I18n.fmtHours(hours);
     document.getElementById("sumDays").textContent = I18n.fmtNum(workedDays) + " " + I18n.plural(workedDays, I18n.t("daysForms"));
-    /* attendance line: counted vs fond hours and the resulting bonus tier */
+    /* attendance line: last month's share/tier decides THIS month's payout */
     const attLine = document.getElementById("attLine");
-    const ai = state.attInfo;
+    const pb = state.prevBonus;
     if (attLine) {
-      if (ai && ai.fond > 0 && !(state.settings.bonusMonthKc > 0)) {
+      if (state.settings.bonusMonthKc > 0) {
+        attLine.hidden = true;
+      } else if (pb && pb.hasData) {
+        const ai = pb.info;
         attLine.hidden = false;
-        attLine.textContent = I18n.t("attShare") + ": " + Math.round(ai.share * 100) + " % (" +
+        attLine.textContent = I18n.t("attPrevMonth") + ": " + Math.round(ai.share * 100) + " % (" +
           I18n.fmtNum(ai.counted) + " / " + I18n.fmtNum(ai.fond) + " " + I18n.t("hoursUnit") + ") → " +
           I18n.t("attBonus") + " " +
           (state.settings.bonusVoid ? "0 % — " + I18n.t("attVoid")
-            : Math.round(ai.pct * 100) + " % ≈ " + I18n.fmtMoney(ai.amount));
+            : Math.round(ai.pct * 100) + " % ≈ " + I18n.fmtMoney(state.bonusKc));
       } else {
-        attLine.hidden = true;
+        attLine.hidden = false;
+        attLine.textContent = I18n.t("attNoPrev");
       }
     }
   }
@@ -643,9 +676,9 @@
       " (" + I18n.fmtNum(agg.wDays) + " " + I18n.plural(agg.wDays, I18n.t("daysForms")) + ")");
     meta.push(I18n.t("psRateBase") + ": " + I18n.fmtNum(s.baseRate) + " " + I18n.t("u_kch"));
     meta.push(I18n.t("psRatePhv") + ": " + I18n.fmtNum(s.phvRate) + " " + I18n.t("u_kch"));
-    if (state.attInfo && state.attInfo.fond > 0 && !(s.bonusMonthKc > 0)) {
-      meta.push(I18n.t("attShare") + ": " + Math.round(state.attInfo.share * 100) + " % → " +
-        (s.bonusVoid ? "0 % (" + I18n.t("attVoid") + ")" : Math.round(state.attInfo.pct * 100) + " %"));
+    if (state.prevBonus && state.prevBonus.hasData && !(s.bonusMonthKc > 0)) {
+      meta.push(I18n.t("attShare") + ": " + Math.round(state.prevBonus.info.share * 100) + " % → " +
+        (s.bonusVoid ? "0 % (" + I18n.t("attVoid") + ")" : Math.round(state.prevBonus.info.pct * 100) + " %"));
     }
     document.getElementById("psMeta").textContent = meta.join("   ·   ");
 
@@ -747,12 +780,15 @@
       const entry = state.shifts[i] || { type: "volno", overtime: false, holidayWork: true };
       resultsRaw.push(Payroll.calcDay(new Date(state.year, state.month, i + 1), entry.type, entry, state.settings, holidayMap));
     }
-    /* attendance bonus: tier model (10/6/2/0 % by counted-vs-fond share);
-     * the fixed monthly amount from a payslip overrides the tiers */
+    /* attendance bonus on THIS payslip was earned LAST month: tier and counted
+     * hours come from the previous month, paid at the current base rate.
+     * Overrides: manual fixed amount (bonusMonthKc), warning-letter void. */
     state.pattern = currentPattern();
     state.fondDays = state.pattern ? Payroll.countFondDays(state.year, state.month, state.pattern.weekdays) : 0;
-    state.attInfo = Payroll.attendanceInfo(resultsRaw, state.shifts, state.settings, state.fondDays);
-    const results = Payroll.withAttendanceBonus(resultsRaw, state.shifts, state.settings, state.fondDays);
+    state.prevBonus = prevMonthBonusKc();
+    state.bonusKc = state.settings.bonusVoid ? 0
+      : (state.settings.bonusMonthKc > 0 ? state.settings.bonusMonthKc : state.prevBonus.amount);
+    const results = Payroll.withMonthlyBonus(resultsRaw, state.bonusKc);
 
     window.CalendarView.render(calendarWrap, {
       year: state.year, month: state.month,
@@ -801,10 +837,9 @@
         /* update the shared result for this day so the totals stay live while painting;
          * re-derive the bonus layer from raw results (never double-apply) */
         resultsRaw[idx] = Payroll.calcDay(new Date(state.year, state.month, idx + 1), b.type, state.shifts[idx], state.settings, holidayMap);
-        /* refresh the attendance info too, otherwise the summary line shows the
-         * pre-paint share/tier until mouseup */
-        state.attInfo = Payroll.attendanceInfo(resultsRaw, state.shifts, state.settings, state.fondDays || 0);
-        const painted = Payroll.withAttendanceBonus(resultsRaw, state.shifts, state.settings, state.fondDays || 0);
+        /* painting the CURRENT month never changes THIS month's bonus — it was
+         * earned last month; only the same fixed amount gets redistributed */
+        const painted = Payroll.withMonthlyBonus(resultsRaw, state.bonusKc || 0);
         window.CalendarView.refreshCell(calendarWrap, { year: state.year, month: state.month, shifts: state.shifts, results: painted, brush: b }, idx);
         renderSummary(painted);
         renderBreakdown(painted);
