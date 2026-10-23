@@ -284,6 +284,7 @@
         }
       }
       state.settings[key] = v;
+      recordRateChange();
       persistAll();
       buildSettingsForm(); /* keep the advanced form in sync */
       renderAll();
@@ -350,12 +351,39 @@
     renderAll();
   });
 
+  /* ============ Rate history (for exact per-date PVH) ============
+   * Every base-rate/PVH change is recorded with its date. The previous-quarter
+   * PVH computation then prices each past day with the rates actually in force
+   * that day — a mid-quarter raise no longer skews the average. */
+  const LS_RATE_HISTORY = "hpp_kalkulacka_rate_history_v1";
+  function loadRateHistory() {
+    try { return JSON.parse(localStorage.getItem(LS_RATE_HISTORY) || "[]"); } catch (e) { return []; }
+  }
+  function recordRateChange() {
+    const today = Payroll.dateKey(new Date());
+    const h = loadRateHistory();
+    const cur = { at: today, baseRate: state.settings.baseRate, phvRate: state.settings.phvRate };
+    if (h.length && h[h.length - 1].at === today) h[h.length - 1] = cur; else h.push(cur);
+    try { localStorage.setItem(LS_RATE_HISTORY, JSON.stringify(h)); } catch (e) { }
+  }
+  /* Settings as they stood on a given date: latest history entry not after it.
+   * Before the first recorded change we assume the earliest entry held. */
+  function settingsForDate(d) {
+    const h = loadRateHistory();
+    if (!h.length) return state.settings;
+    const dk = Payroll.dateKey(d);
+    let entry = h[0];
+    h.forEach(function (e) { if (e.at <= dk) entry = e; });
+    return Object.assign({}, state.settings, { baseRate: entry.baseRate, phvRate: entry.phvRate });
+  }
+
   /* ============ Settings form ============ */
   /* Built from Payroll.SETTINGS_FIELDS so the form always matches the math. */
-  /* PHV (průměrný hodinový výdělek) is by law derived from the PREVIOUS
+  /* PVH (průměrný hodinový výdělek) is by law derived from the PREVIOUS
    * calendar quarter (§ 351+ ZP). The user paints shifts month by month and
    * they persist in localStorage — so we can recompute those months and divide
-   * pay-for-work by worked hours. Returns null when no data is saved. */
+   * pay-for-work by worked hours, each day with the rates in force that day.
+   * Returns null when no data is saved. */
   function computePrevQuarterPhv() {
     const qStart = Math.floor(state.month / 3) * 3;
     let py = state.year, pm = qStart - 3;
@@ -370,7 +398,7 @@
       let shifts = loadShifts(py, m, dim);
       if (!shifts.some(function (s) { return s.type !== "volno" && !s.predicted; })) {
         /* month never painted for real (or only auto-filled) — approximate it
-         * from the roster pattern and mark the PHV as an estimate */
+         * from the roster pattern and mark the PVH as an estimate */
         if (!pattern) continue;
         shifts = [];
         for (let i = 0; i < dim; i++) {
@@ -381,7 +409,8 @@
       }
       if (!holCache[py]) holCache[py] = Payroll.buildHolidayMap(py, I18n.getLang(), I18n.locales());
       shifts.forEach(function (sh, i) {
-        days.push(Payroll.calcDay(new Date(py, m, i + 1), sh.type, sh, state.settings, holCache[py]));
+        const dayDate = new Date(py, m, i + 1);
+        days.push(Payroll.calcDay(dayDate, sh.type, sh, settingsForDate(dayDate), holCache[py]));
       });
     }
     const res = days.length ? Payroll.phvFromDays(days) : null;
@@ -420,6 +449,7 @@
             }
           }
           state.settings[f.key] = newVal;
+          recordRateChange();
           persistAll();
           renderAll();
         });
